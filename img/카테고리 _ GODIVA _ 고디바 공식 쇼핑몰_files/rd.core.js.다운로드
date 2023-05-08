@@ -1,0 +1,66 @@
+(function() {
+	
+	/**
+	 * console 호환성 코드
+	 */
+	var initConsole = function() {
+		if(!window.console) {
+			window.console = {};
+		}
+		
+		var methods = [
+           'log', 'info', 'warn', 'error', 'debug', 'trace', 'dir', 'group',
+           'groupCollapsed', 'groupEnd', 'time', 'timeEnd', 'profile', 'profileEnd',
+           'dirxml', 'assert', 'count', 'markTimeline', 'timeStamp', 'clear'
+        ];
+		
+		for(var i = 0; i < methods.length; i++) {
+			if(!window.console[methods[i]]) {
+				window.console[methods[i]] = function() {};
+			}
+		}
+	};
+
+    /**
+	 * Hash tag 에 replace function 을 추가
+     */
+	var initReplaceHash = function() {
+		(function(namespace) { // Closure to protect local variable "var hash"
+		    if ('replaceState' in history) { // Yay, supported!
+		        namespace.replaceHash = function(newhash) {
+		            if ((''+newhash).charAt(0) !== '#') newhash = '#' + newhash;
+		            history.replaceState('', '', newhash);
+		        }
+		    } else {
+		        var hash = location.hash;
+		        namespace.replaceHash = function(newhash) {
+		            if (location.hash !== hash) history.back();
+		            location.hash = newhash;
+		        };
+		    }
+		})(window);
+	};
+
+    /**
+	 * depth 가 있는 변수를 기본 초기화한다 (fn.item1.item2)
+     * @param base 초기화할 기본변수
+     * @param items dot 이 포함되어 있는 변수명 (rd.util)
+	 * @see http://stackoverflow.com/questions/5484673/javascript-how-to-dynamically-create-nested-objects-using-object-names-given-by
+     */
+    var createNestedObject = function(base, items){
+    	items = items.split('.');
+
+        $.each(items, function(i, v){
+            base = base[v] = (base[v] || {});
+        });
+    };
+
+	(function() {
+		initConsole();
+		initReplaceHash();
+
+		// rd 네임스페이스 초기화, rd.util 추가
+		createNestedObject(window, 'rd.util');
+		window.rd.createNestedObject = createNestedObject;
+	})();
+})();

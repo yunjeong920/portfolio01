@@ -1,0 +1,96 @@
+(function() {
+	
+	/**
+	 * 페이징 처리
+	 */
+	var Paging = new function(){
+		this.setting = function(options) {
+			options = $.extend({
+				target     : 'pageMst',
+				pageSize   : 0,
+				pageNumber : 0,
+				totalCount : 0,
+				pageCount  : 0,
+				getList    : ''
+			}, options);
+			
+			if(!options.getList || !$.isFunction(options.getList)){
+				return;
+			}
+			
+			// 처음버튼
+			if(options.pageCount < options.pageNumber){
+				var map = {};
+				map.page = 1;
+				var html = rd.HtmlTemplate.inject(map, '#page-first-tmpl', '#'+options.target, 'append');
+				$(html).on('click', function(e){
+					e.preventDefault();
+					options.getList($(this).data('value'));
+				});
+			}
+			
+			// 이전버튼
+			if(options.pageNumber > options.pageCount){
+				var map = {};
+				map.page = ((parseInt((options.pageNumber-1)/options.pageCount)-1)*options.pageCount)+1;
+				var html = rd.HtmlTemplate.inject(map, '#page-before-tmpl', '#'+options.target, 'append');
+				$(html).on('click', function(e){
+					e.preventDefault();
+					options.getList($(this).data('value'));
+				});
+			}
+			
+			// 페이지 버튼
+			var startPage = ((Math.ceil(options.pageNumber/options.pageCount)-1)*options.pageCount)+1;
+			var lastPage = Math.ceil(options.totalCount/options.pageSize);
+			var endPage = lastPage;
+			var comPage = Math.ceil(startPage/options.pageCount)*options.pageCount;
+			var nextPage = false;
+			if(comPage < endPage){
+				endPage = comPage;
+				nextPage = true;
+			}
+			for(var i=startPage; i<=endPage; i++){
+				var map = {};
+				map.page = i;
+				if(options.pageNumber == i){
+					rd.HtmlTemplate.inject(map, '#page-now-tmpl', '#'+options.target, 'append');
+				}else{
+					var html = rd.HtmlTemplate.inject(map, '#page-tmpl', '#'+options.target, 'append');
+					$(html).on('click', function(e){
+						e.preventDefault();
+						options.getList($(this).data('value'));
+					});
+				}
+			}
+	
+			// 다음 버튼
+			if(nextPage){
+				var map = {};
+				map.page = (Math.ceil(startPage/options.pageCount)*options.pageCount)+1;
+				var html = rd.HtmlTemplate.inject(map, '#page-after-tmpl', '#'+options.target, 'append');
+				$(html).on('click', function(e){
+					e.preventDefault();
+					options.getList($(this).data('value'));
+				});
+			}
+			
+			// 마지막 버튼
+			if(nextPage){
+				var map = {};
+				map.page = lastPage;
+				var html = rd.HtmlTemplate.inject(map, '#page-last-tmpl', '#'+options.target, 'append');
+				$(html).on('click', function(e){
+					e.preventDefault();
+					options.getList($(this).data('value'));
+				});
+			}
+		}
+	};
+	
+	$(function() {
+		cl.Paging = Paging;
+	});
+
+})();
+

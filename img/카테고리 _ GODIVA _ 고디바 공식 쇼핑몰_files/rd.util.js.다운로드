@@ -1,0 +1,396 @@
+(function() {
+	
+	var StringUtil = new function() {
+		
+		this.getByteLength = function(str, bytePerUnicode) {
+			var byte = bytePerUnicode || 3;
+			
+			var b = 0;
+			var c = '';
+			
+			for(var i = 0; c = str.charCodeAt(i++); b += c >> 11 ? byte : c >> 7 ? 2 : 1);
+			
+			return b;
+		};
+	};
+	
+    var UrlUtil = new function() {
+
+        this.addParamsToUrl = function(url, params) {
+            var splitArray = url.split('?');
+            var urlExceptQueryString = splitArray[0];
+            var queryString = '';
+            
+            var resultUrl = urlExceptQueryString;
+            
+            if(splitArray.length > 1) {
+                queryString = splitArray.splice(1).join('');
+            }
+            
+            if(typeof params === 'string') {
+                queryString += '&' + params;
+            } else if(typeof params === 'object') {
+                $.each(params, function(k, v) {
+                    queryString += '&' + k + '=' + v;
+                });
+            }
+            
+            if(s.startsWith(queryString, '&')) {
+                queryString = queryString.substr(1);
+            }
+            
+            if(queryString) {
+                resultUrl += '?' + queryString;
+            }
+            
+            return resultUrl;
+        };
+        
+        this.toObjectProperty = function(obj, parentName) {
+            var result = {};
+
+            var recursive = function(obj, parentName) {
+                if(obj.constructor === [].constructor) {
+                    $.each(obj, function(i, v) {
+                    	recursive(v, parentName + '[' + i + ']');
+                    });
+                }
+                else if(obj.constructor === {}.constructor) {
+                    $.each(obj, function(i, v) {                   	
+                    	recursive(v, parentName + (parentName ? '.' : '') + i);
+                    });
+                }
+                else {
+                    result[parentName] = obj;
+                }
+            };
+            
+            recursive(obj, parentName || '');
+
+            return result;
+        };
+        
+        this.toMapProperty = function(obj, parentName) {
+        	var result = {};
+        	
+        	var recursive = function(obj, parentName) {
+        		if(obj.constructor === [].constructor) {
+        			$.each(obj, function(i, v) {
+        				recursive(v, parentName + '[' + i + ']');
+        			});
+        		}
+        		else if(obj.constructor === {}.constructor) {
+        			$.each(obj, function(i, v) {                   	
+        				recursive(v, parentName + '[' + i + ']');
+        			});
+        		}
+        		else {
+        			result[parentName] = obj;
+        		}
+        	};
+        	
+        	recursive(obj, parentName || '');
+        	
+        	return result;
+        };
+    };
+
+    var FormUtil = new function() {
+
+        /**
+         * form 요소들을 그룹핑
+         * groupName 에 공통된 각 요소들의 name 앞글자를 입력하면
+         * name 의 앞글자가 동일한 폼요소들이 그룹핑되어 리턴
+         */
+        this.filterFormGroup = function(formGroup, groupName, delimiter) {
+            var convertRecursively = function(targetMap, delimiter, key, value) {
+
+                if(key.indexOf(delimiter, 1) > -1) {
+                    var currentKey = key.substring(0, key.indexOf(delimiter, 1));
+                    var currentChildKey = key.substring(key.indexOf(delimiter, 1));
+
+                    currentKey = removeDelimiter(currentKey, delimiter);
+
+                    if(typeof targetMap[currentKey] != 'object') {
+                        targetMap[currentKey] = {};
+                    }
+
+                    convertRecursively(targetMap[currentKey], delimiter, currentChildKey, value);
+                }
+
+                else {
+                    key = removeDelimiter(key, delimiter);
+                    
+                    if(targetMap[key]) {
+                        if(!targetMap[key].push) {
+                            targetMap[key] = [targetMap[key]];
+                            targetMap[key].push(value);
+                        } else {
+                            targetMap[key].push(value);
+                        }
+                    }
+                    
+                    else {
+                        targetMap[key] = value;
+                    }
+                }
+            };
+
+            var removeDelimiter = function(key, delimiter) {
+                if(delimiter == '[') {
+                    key = key.replace(new RegExp('[\\[\\]]*', 'g'), '');
+                } else {
+                    key = key.replace(new RegExp('\\' + delimiter + '*', 'g'), '');
+                }
+
+                return key;
+            };
+
+            delimiter = delimiter || '.';
+            groupName = groupName || '';
+
+            var group = $(formGroup).find('[name^="' + groupName + delimiter + '"]').addBack('[name^="' + groupName + delimiter + '"]');
+            var groupTable = {};
+
+            group.each(function(i, v) {
+                var currentName = v.name;
+                if(currentName.charAt(0) == delimiter) {
+                    currentName = currentName.substring(1);
+                }
+
+                currentName = currentName.replace(groupName, '');
+
+                convertRecursively(groupTable, delimiter, currentName, v);
+            });
+
+            return groupTable;
+        };
+
+        this.disableElements = function(elements) {
+            var elements = $(elements);
+            
+            elements.filter(':input').prop('disabled', true);
+            elements.filter('a')
+                .eventPause('pause')
+                .on('click.disableElements', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+        };
+        
+        this.enableElements = function(elements) {
+            var elements = $(elements);
+            
+            elements.filter(':input').prop('disabled', false);
+            elements.filter('a')
+                .eventPause('active')
+                .off('click.disableElements');
+        };
+    };
+    
+    var DateUtil = new function() {
+    	
+    	/**
+    	 * 날짜 포맷 형식 지정
+    	 * @param date		포맷을 설정할 날짜
+    	 * @param format	날자 포맷 형식 : 기본값은 YYYY-MM-DD
+    	 * @param patten	날짜 중간에 포함할 특수문자 : 기본값은 -
+    	 */
+    	this.setDateFormat = function(date, format, patten) {
+    		if(date == null) {
+    			return '';
+    		}
+    		
+    		var f;
+    		var p = '';
+    		
+    		p = patten != undefined ? patten : '-';
+    		
+    		switch (format) {
+				case 'ymd':
+					f = 'YYYY' + p + 'MM' + p + 'DD';
+					break;
+				case 'ymdhms': 
+					f = 'YYYY' + p + 'MM' + p + 'DD ' + 'hh:mm:ss';
+					break;
+				case 'ymdHms': 
+					f = 'YYYY' + p + 'MM' + p + 'DD ' + 'HH:mm:ss';
+					break;
+				case 'ymdhm': 
+					f = 'YYYY' + p + 'MM' + p + 'DD ' + 'HH:mm';
+					break;
+				case 'ymdHm': 
+					f = 'YYYY' + p + 'MM' + p + 'DD ' + 'HH:mm';
+					break;
+				case 'md': 
+					f = 'MM' + p + 'DD ';
+					break;
+				default:
+					f = 'YYYY' + p + 'MM' + p + 'DD';
+					break;
+			}
+    		
+    		return moment(date).format(f);
+    	}
+    	
+    	/**
+    	 * 현재 날짜와 시작일~종료일 기간 비교해서 상태 return
+    	 * @param startDate 기간 시작일
+    	 * @param endDate 기간 종료일
+    	 */
+    	this.checkStatus = function(startDate, endDate) {
+    		var today = new Date();
+    		var status = '';
+    		startDate = startDate.date().print();
+    	   	endDate = endDate.date().print();
+
+    		if( today.date().diff(startDate) > 0 ) {
+    		    status = 'scheduled';
+    		} else if( today.date().diff(startDate) <= 0 && today.date().diff(endDate) >=0  ) {
+    		    status = 'active';
+    		} else if( today.date().diff(endDate) < 0 ) {
+    		    status = 'deactive';
+    		}
+
+    		return status;
+    	}
+    };
+    
+    /**
+     * 숫자 포맷 변경
+     */
+    var NumberFormatUtil = new function(){
+
+    	/**
+    	 * 숫자를 금액 표기법으로 변경하여 리턴
+    	 */
+    	this.formatPrice = function(number){
+    		
+    		if( number == undefined || number == null ) {
+    			return '0';
+    		}
+    		
+    		var reg = /(^[+-]?\d+)(\d{3})/;
+    		var price = number.toString();
+    		
+    		while (reg.test(price)){
+    			price = price.replace(reg, '$1' + ',' + '$2');
+    		}
+    		
+    		return price;
+    	}
+    	
+    	/**
+    	 * 콤마가 들어간 금액에서 콤마를 제거
+    	 */
+    	this.unformatPrice = function(number){
+    		
+    		if(number == undefined) return 0;
+    		
+    		var price = number.toString().replace(/,/gi, "");
+    		
+    		return price;
+    	};
+    	
+    	/**
+    	 * 금액 input 에 keyup 이벤트로 콤마가 들어가게함
+    	 */
+    	this.bindFormatPrice = function(selector){
+    		$(selector).on('keyup', function(e) {
+    			var unfomatValue = NumberFormatUtil.unformatPrice(this.value);
+    			this.value = NumberFormatUtil.formatPrice(unfomatValue);
+    		});
+    	};
+    	
+    	/**
+    	 * 선택된 selector 의 value 에서 콤마를 모두 제거
+    	 * submit 시 주로 사용
+    	 */
+    	this.unformatPriceSelector = function(selector) {
+    		$(selector).each(function(i, v) {
+    			this.value = NumberFormatUtil.unformatPrice(this.value);
+    		});
+    	}
+    };
+    
+    /**
+	 * 해시함수(로컬저장소) 사용
+	 */
+	var HashUtil = new function() {
+		this.init = function(){
+			localStorage.clear();
+		}
+		
+		this.getHash = function(){
+			var j, q;
+			q = localStorage.getItem(location.pathname).split("&");
+			j = {};
+			
+			$.each(q, function(i, arr) {
+				arr = arr.split('=');
+				return j[arr[0]] = arr[1];
+			});
+			
+			return j;
+		}
+		
+		this.setHash = function(options){
+			options = $.extend({
+				form : document.forms.major
+			}, options);
+			
+			var text = $(options.form).serialize();
+			if(typeof(options.searchVal)!=='undefined'){
+				for(key in options.searchVal){
+					if(typeof(options.searchVal[key])!=='undefined'){
+						text += '&'+key+'='+options.searchVal[key]; 
+					}
+				}
+			}
+			
+			localStorage.setItem(location.pathname, text);
+		}
+		
+		this.isEmpty = function(){
+			if(localStorage.getItem(location.pathname) == '' || localStorage.getItem(location.pathname) == null) return true;
+			else return false;
+		}
+	};
+	
+	var CookieUtil = new function(){
+		this.sekCookie = function(cname, cvalue, exdays){
+			var d = new Date();
+		    d.setTime(d.getTime() + (exdays*24*60*60*1000));
+		    var expires = "expires="+ d.toUTCString();
+		    document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+		}
+		
+		this.getCookie = function(cname) {
+		    var name = cname + "=";
+		    var decodedCookie = decodeURIComponent(document.cookie);
+		    var ca = decodedCookie.split(';');
+		    for(var i = 0; i <ca.length; i++) {
+		        var c = ca[i];
+		        while (c.charAt(0) == ' ') {
+		            c = c.substring(1);
+		        }
+		        if (c.indexOf(name) == 0) {
+		            return c.substring(name.length, c.length);
+		        }
+		    }
+		    return "";
+		}
+	};
+    
+    (function() {
+    	rd.util.string = StringUtil;
+    	rd.util.url = UrlUtil;
+    	rd.util.form = FormUtil;
+    	rd.util.date = DateUtil;
+    	rd.util.numberFormat = NumberFormatUtil;
+    	rd.util.hash = HashUtil;
+    	rd.util.cookie = CookieUtil;
+    })();
+    
+    return rd;
+})();

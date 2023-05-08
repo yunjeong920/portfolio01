@@ -1,0 +1,466 @@
+(function() {
+
+    cl.footer = function() {
+    	this.readAjaxObj = false;// ajax중복제거 값
+    	
+    	this.init();
+    };
+
+    /**
+     * init
+     */
+    cl.footer.prototype.init = function() {
+    	this.bindItemRecentlyCount(); // 최근본제품 Count
+    	this.bindCartCount(); // CART Count
+    	
+    	this.bindMemberBtn(); // 회원정보 마우스 오버시
+    	this.bindItemRecentlyBtn(); // 최근본제품 마우스 오버시
+    	this.bindCartBtn(); // CART 마우스 오버시
+    	
+    	this.bindRecentlyItemBasketbind(); // 최근 본 제품 CART 담기 이벤트
+    	this.getMemberNoti(); // 상황별알림
+    	
+    	this.bindPopup();
+    	this.emptyLayerPopupAreaRemove();
+    	
+    	this.bindMoMenuBtn(); // MO메뉴클릭 
+    }
+    
+    /**
+     * popup 호출
+     */
+    cl.footer.prototype.setPopDpLocCdBit = function(url){
+    	var result = 16;
+    	if(url == '/')
+    		result = 1;
+    	else if(url.indexOf('order/order-complete') > 0)
+    		result = 2;
+    	else if(url == '/cart')
+    		result = 4;
+    	else if(url == '/mypage/wish')
+    		result = 8;
+    	
+    	return result;
+    }
+    
+    /**
+     * popup 호출
+     */
+    cl.footer.prototype.bindPopupClose = function(){
+    	$('.todyCashBtn').on('click', function() {
+			var checked = $(this).prop('checked');
+			var popId = $.cookie('mPopupId') ? $.cookie('mPopupId') : '';
+			var id = $(this).data('id');
+			
+			if(checked) {
+				var data = id + ','; 
+				
+				$.cookie('mPopupId', popId + data, { expires: 1 });
+			} else {
+				if(popId != '') {
+					var popIdAr = popId.split(',');
+					
+					popId = '';
+					
+					$.each(popIdAr, function(i, v) {
+						if(v.indexOf(id) === -1) {
+							if(popId.length > 0) popId += ',';
+								
+							popId += v;
+						}
+					});
+					
+					$.cookie('mPopupId', popId, { expires: 1 });
+				}
+			}
+		});
+    }
+    	
+	/**
+	 * popup 호출
+	 */
+	cl.footer.prototype.bindPopup = function(){
+    	
+    	var url = location.pathname.replace(location.hash, '');
+    	var popId = new String($.cookie('mPopupId'));
+    	
+    	if(url.indexOf("member") > 0)
+    		return;
+    	
+    	rd.Ajax.get({
+    		url: '/popup',
+    		data : {
+    			cont : url,
+    			popDpLocCdBit : this.setPopDpLocCdBit(url)
+    		}
+        }).done(function (d) {
+        	
+        	if(d.popupList.length > 0){
+        		var popupHtml = "";
+        		$.each(d.popupList , function(k, v){
+        			if(popId.indexOf(v.popId) < 0){
+        				popupHtml += 
+        					"<div class='popup' data-id='"+v.popId+"'>"
+        					+ "<div class='frame'><a href='"+v.linkUrlAddr+"' target='_blank'><img src='"+c.attachBaseUrl + v.atchPath+"' width='320'"
+        					+ "alt='"+v.popTit+"'></a></div><div class='bottom'><label class='popup-check'>" +
+        					"<input type='checkbox' class='todyCashBtn' data-id='"+v.popId+"'> 오늘 하루 이창을 열지 않음</label>" +
+        					"<a href='javascript:void(0);' class='close'>닫기 <i class='ico'>" +
+        					"<img src='"+c.resRoot + "/img/svg/icon-close-white.svg' width='10' alt='' ></i></a></div></div>";
+        			}
+        		})
+        		
+        		if(popupHtml != ""){
+        			popupHtml = "<div class='popup-box'>"+popupHtml+'</div>';
+        			$("#eventPopup").show();
+        			$("#popupTarget").append(popupHtml);
+        			cl.footer.bindPopupClose();
+        		}
+        	}
+        	
+        }).fail(function (e) {
+            e.alertError();
+        }).always(function (e) {
+        	noticeEventLayerPopupFn();
+    		uniformInit();
+        });
+    	
+    	
+//    	var id, target;
+//		var popId = $.cookie('mPopupId');
+//		
+//		if(popId !== undefined) {
+//			var popIdAr = popId.split(',');
+//
+//			$.each($('#eventPopup').find('.popup'), function(i, v) {
+//				target = $(v);
+//				id = $(target).data('id');
+//				
+//				$.each(popIdAr, function(si, sv) {
+//					if(sv.indexOf(id) > -1) {
+//						$(target).remove();
+//					}
+//				});
+//			});
+//			
+//			if($('#eventPopup').find('.popup').length > 0)
+//				$('#eventPopup').show();
+//		} else {
+//			$('#eventPopup').show();
+//		}
+    }
+    
+    /**
+     * 비어있는 layer-popup 영역 삭제
+     */
+    cl.footer.prototype.emptyLayerPopupAreaRemove = function(){
+//    	if($('.notice-event-layer-popup .popup').length == 0){
+//    		$('.notice-event-layer-popup').remove();
+//    	}
+    }
+    
+    /**
+     * 최근 본 제품 -> CART 이벤트
+     */
+    cl.footer.prototype.bindRecentlyItemBasketbind = function() {
+    	$('.hd-g-pop-close').on('click', function(e){
+    		e.preventDefault();
+    	})
+    	
+    	$('#recently').on('submit', function(e) {
+    		e.preventDefault();
+    		var itemCdList = new Array();
+    		$('[name=checkBoxRecently]:checked').each(function(i, v){
+    			itemCdList.push($(v).parents('[name=recently-item-cd]').data('itemCd'));
+    		});
+    		
+    		cl.footer.mergeInfoCart(itemCdList, 'RCNT00201');
+    	});
+    }
+    
+    /**
+     * CART 등록
+     * @author JH
+     */
+    cl.footer.prototype.mergeInfoCart = function(itemCdList, acode){
+        if(itemCdList == null || itemCdList.length == 0){
+            alert('제품을 선택해주세요.');
+            return;
+        }
+        
+        cl.Cart.setting({
+        	'callback' : '',
+        	'data' : {
+        		'itemCdList' : itemCdList,
+        		'acode' : acode
+        	}
+        });
+    }
+    
+    /**
+     * 최근 본 제품 Count 이벤트
+     */
+    cl.footer.prototype.bindItemRecentlyCount = function() {
+    	
+    	rd.Ajax.get({
+    		url: '/recently/list'
+        }).done(function (d) {
+        	$('#headerRecentlyCount').text(rd.util.numberFormat.formatPrice(d.totalCount));
+        	rd.HtmlTemplate.inject(d.totalCount, '#header-count-tmpl', '.view-btn', 'append');
+        	rd.HtmlTemplate.inject(d.totalCount, '#header-count-mobile-tmpl', '.view-toggler', 'append');
+        }).fail(function (e) {
+            e.alertError();
+        }).always(function (e) {
+
+        });
+    }
+    
+    /**
+     * 위시 Count 이벤트
+     */
+    cl.footer.prototype.bindWishCount = function() {
+    	
+    	if(window.c.isLogin == 'false'){
+    		rd.HtmlTemplate.inject(0, '#header-count-tmpl', '.heart-btn', 'append');
+    		return;
+    	}
+    	
+    	rd.Ajax.get({
+            url: '/mypage/wish/count'
+        }).done(function (d) {
+        	rd.HtmlTemplate.inject(d.count, '#header-count-tmpl', '.heart-btn', 'append');
+        }).fail(function (e) {
+            e.alertError();
+        }).always(function (e) {
+
+        });
+    }
+    
+    /**
+     * CART Count 이벤트
+     */
+    cl.footer.prototype.bindCartCount = function() {
+    	rd.Ajax.get({
+            url: '/cart/count'
+        }).done(function (d) {
+        	rd.HtmlTemplate.inject(d.count, '#header-count-tmpl', '.cart-btn', 'append');
+        	rd.HtmlTemplate.inject(d.count, '#header-count-tmpl', '.cart-btn', 'append');
+        }).fail(function (e) {
+            e.alertError();
+        }).always(function (e) {
+
+        });
+    }
+    
+    /**
+     * 회원정보버튼 이벤트
+     */
+    cl.footer.prototype.bindMemberBtn = function() {
+    	$('.loginadmin').on('click', function(e){
+    		
+    		var infoDiv = $(".hd-me-member-infor-popup");
+    		rd.Ajax.get({
+				url: '/mypage/myhome/info'
+			}).done(function(d) { 
+				infoDiv.find(".point").text(rd.util.numberFormat.formatPrice(d.usePoint));
+				infoDiv.find(".coupon").text(d.couponCount);
+				infoDiv.find(".alarm").text(d.unReadAlarmCount);
+				infoDiv.find(".order").text(d.orderCount);
+			}).fail(function(e) {
+				//e.alertError();
+			})
+    	})
+    }
+    
+    /**
+     * 최근본제품버튼 이벤트
+     */
+    cl.footer.prototype.bindItemRecentlyBtn = function() {
+    	$('body').on('latest_view_mouse_enter', function(e){
+			rd.Ajax.get({
+				url: '/recently/list'
+			}).done(function(d) {
+				var recentlyCount = 0;
+				// 초기화
+				$('#recentlyItem').html('');
+				
+				// 제품 리스트 없을 시 list-empty-tmpl에 inject
+				if(d.totalCount == 0){
+					
+					rd.HtmlTemplate.inject(null, '#list-empty-tmpl-recently', '#recentlyItem', 'append');
+				} else {
+					// 제품 리스트 있을 시 list-tmpl에 inject
+					$.each(d.rcList, function(i, v){
+						
+		            	// 영역코드
+						var acode = '';
+						if((i+1) < 10){
+							acode = 'RCNT0010' + (i+1);
+						}else{
+							acode = 'RCNT001' + (i+1);
+						}
+                        v.itemDetailUrl = '/item/' + v.itemCd + '?acode=' + acode;
+						v.rgurPrc = rd.util.numberFormat.formatPrice(v.rgurPrc);
+						v.sellPrc = rd.util.numberFormat.formatPrice(v.sellPrc);
+						rd.HtmlTemplate.inject(v, '#list-tmpl-recently', '#recentlyItem', 'append');
+						recentlyCount++;
+					});
+					
+				}
+				
+			}).fail(function(e) {
+				//e.alertError();
+			}).always(function (e) {
+				$('[name=checkBoxRecently]').uniform();
+			});
+		});
+    	
+    	// 모바일
+    	$('.view-toggler').on('click', function(e){
+    		rd.Ajax.get({
+				url: '/recently/list?acode=MMAIN00202'
+			}).done(function(d) {
+				var recentlyCount = 0;
+				// 초기화
+				$('#recentlyItem').html('');
+				
+				// 제품 리스트 없을 시 list-empty-tmpl에 inject
+				if(d.totalCount == 0){
+					
+					rd.HtmlTemplate.inject(null, '#list-empty-tmpl-recently', '#recentlyItem', 'append');
+				} else {
+					// 제품 리스트 있을 시 list-tmpl에 inject
+					$.each(d.rcList, function(i, v){
+						
+						// 영역코드
+						var acode = '';
+						if((i+1) < 10){
+							acode = 'RCNT0010' + (i+1);
+						}else{
+							acode = 'RCNT001' + (i+1);
+						}
+                        v.itemDetailUrl = '/item/' + v.itemCd + '?acode=' + acode;
+						v.rgurPrc = rd.util.numberFormat.formatPrice(v.rgurPrc)
+						v.sellPrc = rd.util.numberFormat.formatPrice(v.sellPrc)
+						rd.HtmlTemplate.inject(v, '#list-tmpl-recently', '#recentlyItem', 'append');
+						recentlyCount++;
+					});
+				}
+			});
+    	});
+    }
+    
+    /**
+     * CART버튼 이벤트
+     */
+    cl.footer.prototype.bindCartBtn = function() {
+    	$('body').on('basket_view_mouse_enter', function(e){
+    		
+            // Ajax 중복 호출 제어
+            if(this.readAjaxObj) {
+                this.readAjaxObj.abort();
+            }
+
+            self.readAjaxObj = rd.Ajax.get({
+                url: '/cart/list'
+            }).done(function (d) {
+                
+				// 초기화
+				$('#headerCartBase').html('');
+				
+				var cartPrc = 0;
+				var cartCount = 0;
+				
+				if(d.cartExtList.length == 0){
+					// empty
+					rd.HtmlTemplate.inject(null, '#header-cart-empty-tmpl', '#headerCartBase', 'append');
+				}else{
+					// list
+					$.each(d.cartExtList, function(i, v){
+						cartCount++;
+						v.imgUrl = cl.ItemImage.getUrl(v.item.itemCd, 'item.image.type.thumb');
+						cartPrc = Number(cartPrc) + Number(v.item.itemPrice.sellPrc*v.cart.qty) 
+						v.item.itemPrice.rgurPrcView = rd.util.numberFormat.formatPrice(v.item.itemPrice.rgurPrc * v.cart.qty);
+						v.item.itemPrice.sellPrcView = rd.util.numberFormat.formatPrice(v.item.itemPrice.sellPrc * v.cart.qty);
+						rd.HtmlTemplate.inject(v, '#header-cart-list-tmpl', '#headerCartBase', 'append');
+					});					
+				}
+                
+				// total
+				$('#headerCartCount').text(rd.util.numberFormat.formatPrice(cartCount));
+				$('#headerCartPrc').text(rd.util.numberFormat.formatPrice(cartPrc));
+				
+            }).fail(function (e) {
+                e.alertError();
+            }).always(function (e) {
+
+            });
+    	});
+    }
+    
+    /**
+     * 상황별알림 가져오기
+     */
+    cl.footer.prototype.getMemberNoti = function(){
+    	var today = rd.util.date.setDateFormat(new Date());
+    	var areaLength = $(".header-login-notice-bar").length;
+    	
+    	if(areaLength > 0 && $.cookie(window.c.loginId) != today && window.c.isLogin == 'true'){
+    		$(".header-login-notice-bar").css("height", "").show();
+    		window.headerNoticeBarFn();
+    		this.bindMemberNotiClose();
+    	}
+    }
+    
+    /**
+     * 상황별알림 닫기버튼 클릭시
+     */
+    cl.footer.prototype.bindMemberNotiClose = function(){
+        $('.header-login-notice-bar').find(".close").on('click', function() {
+            var notiTodayCloseDate = $(this).next().find('input');
+            if(notiTodayCloseDate.is(':checked')){
+            	$.cookie(window.c.loginId, rd.util.date.setDateFormat(new Date()), { path : '/'});
+            }
+                
+        });
+    }
+    
+    /**
+     * 사업자 정보 확인 버튼 팝업 이벤트 bind
+     */
+    cl.footer.prototype.bindCompanyNotiBtn = function(){
+    	
+    	var url = 'http://www.ftc.go.kr/info/bizinfo/communicationViewPopup.jsp?wrkr_no=1168162784';
+    	if(cl.App.isApp()){
+			cl.App.CrowBridge.redirectExternal(url);
+		}else{
+	    	var option = {
+				url: url,
+				name: 'companyNotiPopup',
+				width: '720',
+				height: '730'	
+			};
+	    	rd.Popup.open(option);
+		}
+    }
+    
+    cl.footer.prototype.bindMoMenuBtn = function(){
+    	$('body').on('click', '#moMenuBtn', function(e){
+    		
+    		// 영역코드를 위한 것
+    		// 아무것도 하는게 없음
+    		
+    		rd.Ajax.get({
+                url: '/main/mo/menu?acode=MMAIN00101'
+            }).done(function (d) {
+            }).fail(function (e) {
+                e.alertError();
+            }).always(function (e) {
+            });
+    	});
+    }
+    
+    $(function() {
+        cl.footer = new cl.footer();
+    });
+    
+})();

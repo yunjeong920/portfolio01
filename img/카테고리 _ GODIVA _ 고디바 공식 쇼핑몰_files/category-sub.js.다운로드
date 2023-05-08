@@ -1,0 +1,737 @@
+(function() {
+	
+	var googleItemList;
+	
+	cl.page = function() {
+		
+		self = this;
+		// Ajax 중복 호출 제어
+		this.readAjaxObj = false;
+		
+		this.wish;
+		var form;
+		
+		this.init();
+		rd.util.hash.init();
+	};
+	
+	
+	// init 함수
+	cl.page.prototype.init = function() {
+		form = document.forms.major;
+		// 베스트 제품평
+		this.bindBestBtn();
+		
+		$('#pageNo').val(1);
+		
+		this.getList(); // 리스트 조회
+		this.changeSort();  // 정렬 이벤트 bind
+		this.changeSortMobile(); // 정렬(모바일) 이벤트 bind
+		this.getListMore(); // 더보기 Btn 이벤트 bind
+		this.filterChecked(); // 필터 중복선택 체크 함수
+		this.bindWishEvent(); // 위시 이벤트
+		this.bindCartEvent(); // CART 이벤트
+		this.bindProductClickEvent(); //상품클릭 이벤트
+		
+		$(window).on('unload', function(){
+			rd.util.hash.setHash({
+				form : document.forms.major,
+				searchVal : {
+					character : $('input.charater:checked').val(),
+					sell : $('input.sellPrcFilter:checked').val(),
+					/*line : $('input.lineFilter:checked').val(),*/
+					collection : $('input.collection:checked').val(),
+					ingredient : $('input.ingredient:checked').val(),
+					exclusiv : $('input.exclusiv:checked').val(),
+					starPoint : $('input.starPoint:checked').val()
+				}
+				
+			});
+		});
+		
+		// 컬렉션 및 online Exclusive 메뉴 접근시
+		setTimeout(function (){
+			if(dpCateId == "107" ){ // 시즌한정 컬렉션
+				if(!$('#collectionList li label').eq(0).find("span").hasClass('checked')){
+					$('.side-filter-btn').eq(2).click();
+					$('#collectionList li label').eq(0).find("span").addClass("checked");
+					$('#collectionList li label').eq(0).click();
+				}
+			} else if(dpCateId == "108" ) { // 골드 컬렉션
+				if(!$('#collectionList li label').eq(1).find("span").hasClass("checked")){
+					$('.side-filter-btn').eq(2).click();
+					$('#collectionList li label').eq(1).find("span").addClass("checked");
+					$('#collectionList li label').eq(1).click();
+				}
+			} else if(dpCateId == "109" ) { // 골드 디스커버리
+				if(!$('#collectionList li label').eq(2).find("span").hasClass("checked")) {
+					$('.side-filter-btn').eq(2).click();
+					$('#collectionList li label').eq(2).find("span").addClass("checked");
+					$('#collectionList li label').eq(2).click();
+				}
+			} else if(dpCateId == "110" ) { // 큐브 트뤼프 컬렉션
+				if(!$('#collectionList li label').eq(3).find("span").hasClass("checked")) {
+					$('.side-filter-btn').eq(2).click();
+					$('#collectionList li label').eq(3).find("span").addClass("checked");
+					$('#collectionList li label').eq(3).click();
+				}
+			} else if(dpCateId == "111" ) { // 까레 컬렉션
+				if(!$('#collectionList li label').eq(4).find("span").hasClass("checked")) { 
+					$('.side-filter-btn').eq(2).click();
+					$('#collectionList li label').eq(4).find("span").addClass("checked");
+					$('#collectionList li label').eq(4).click();
+				}
+			} else if(dpCateId == "112" ) { // 비스켓 컬렉션
+				if(!$('#collectionList li label').eq(5).find("span").hasClass("checked")) {
+					$('.side-filter-btn').eq(2).click();
+					$('#collectionList li label').eq(5).find("span").addClass("checked");
+					$('#collectionList li label').eq(5).click();
+				}
+			} else if(dpCateId == "115"){ // 프레스티지 박스
+				if(!$('#exclusiveList li label').eq(0).find("span").hasClass("checked")) {
+					$('.side-filter-btn').eq(4).click();
+					$('#exclusiveList li label').eq(0).find("span").addClass("checked");
+					$('#exclusiveList li label').eq(0).click();
+				}
+			} else if(dpCateId == "118"){ // 버라이어티 패키지
+				if(!$('#exclusiveList li label').eq(3).find("span").hasClass("checked")) {
+					$('.side-filter-btn').eq(4).click();
+					$('#exclusiveList li label').eq(3).find("span").addClass("checked");
+					$('#exclusiveList li label').eq(3).click();
+				}
+			} else if(dpCateId == "117"){ // 번들 패키지
+				if(!$('#exclusiveList li label').eq(2).find("span").hasClass("checked")){
+					$('.side-filter-btn').eq(4).click();
+					$('#exclusiveList li label').eq(2).find("span").addClass("checked");
+					$('#exclusiveList li label').eq(2).click();
+				}
+			} else if(dpCateId == "119"){ // 컵 아이스크림 세트
+				if(!$('#exclusiveList li label').eq(4).find("span").hasClass("checked")){
+					$('.side-filter-btn').eq(4).click();
+					$('#exclusiveList li label').eq(4).find("span").addClass("checked");
+					$('#exclusiveList li label').eq(4).click();
+				}
+			} else if(dpCateId == "116"){ // 세트 패키지
+				if(!$('#exclusiveList li label').eq(1).find("span").hasClass("checked")){
+					$('.side-filter-btn').eq(4).click();
+					$('#exclusiveList li label').eq(1).find("span").addClass("checked");
+					$('#exclusiveList li label').eq(1).click();
+				}
+				
+			}
+		}, 500);
+	} 
+	
+	/**
+	 * 베스트 제품평 이벤트 bind
+	 */
+	cl.page.prototype.bindBestBtn = function(){
+		
+		$('body').on('click', '#bestCmt', function(e) {
+			e.preventDefault();
+			
+			var $this = $(this);
+    		var itemCd = $this.data('itemCd');
+			
+			var option = {
+				'callback' : ''
+				, 'mode' : 'bestView'
+				, 'data' : {
+					'itemCd' : itemCd
+				}
+			};
+    		
+    		cl.commentPopup.setting(option);
+			
+		});
+		
+	}
+	
+	/**
+     * CART 이벤트
+     * @author JH
+     */
+    cl.page.prototype.bindCartEvent = function(){
+        
+        // CART 등록(단일)
+        $('body').on('click', '[name=cartBtn]', function(e){
+            e.preventDefault();
+            
+            /* Google Tag Manager Start */
+            var itemCd = $(this).data('itemCd');
+            var itemPrice = $(this).attr('itemPrice');
+            var itemName  = $(this).attr('itemName');
+            var productPath = $('[name="dpCateNm1"]').val() + " > " + $('[name="dpCateNm2"]').val();
+            
+			//console.log('googleItemList.length :'+ googleItemList.length);
+			//console.log('itemCd :'+itemCd);
+            
+            facebook_pixel(itemName, productPath, itemCd, itemPrice);
+            
+			$.each(googleItemList, function(i,v) {
+				// 상품명 : v.item.itemNm, 상품코드 : v.item.itemCd, 가격 : v.item.itemPrice.sellPrc
+				if(v.item.itemCd == itemCd) {
+					//Google Analytics 데이터 전송
+					cl.page.googleAddCart(v);
+					
+					return false;
+				}				
+			});
+            /* Google Tag Manager End */
+            
+            var itemCdList = new Array();
+            itemCdList.push(itemCd);
+            self.mergeInfoCart(itemCdList);
+        });
+    }
+	
+    /**
+     * CART 등록
+     * @author JH
+     */
+    cl.page.prototype.mergeInfoCart = function(itemCdList){
+        if(itemCdList == null || itemCdList.length == 0){
+            alert('제품을 선택해주세요.');
+            return;
+        }
+
+        cl.Cart.setting({
+        	'callback' : '',
+        	'data' : {
+        		'itemCdList' : itemCdList
+        	}
+        });
+    }
+	
+	
+	/**
+     * 위시 이벤트
+     * @author JH
+     */
+    cl.page.prototype.bindWishEvent = function() {
+      
+	    // 위시 버튼(단일)
+	    $('body').on('click', '[name=wishBtn]', function(e){
+	        e.preventDefault();
+	        if(window.c.mbrsCardNo == ''  && window.c.loginId != ''){
+	        	
+	        } else {
+		        var itemCdList = new Array();
+		        itemCdList.push($(this).data('itemCd'));
+		        
+	    		cl.Wish.setting({
+	            	'target' : $(this),
+	            	'data' : {
+	                    'itemCdList' : itemCdList 
+	            	}
+	            });
+	        }
+	    });
+    }
+	
+ // 리스트 조회
+	cl.page.prototype.getList = function(pageNo, filterVal, flag) {
+		
+		var character = $('#itemCharacterList :checked').val();
+		var sellPrc = $('#sellPrcList :checked').val();
+		/*var lineFilter = $('#lineFilterList :checked').val();*/
+		
+		var collection = $('#collectionList :checked').val();
+		var ingredient = $('#ingredientList :checked').val();
+		var exclusiv = $('#exclusiveList :checked').val();
+		
+		var starPoint = $('#starPointList :checked').val();
+		
+		if(flag == 'character'){
+			character = filterVal;	
+		}
+		
+		if(flag == 'sellPrc'){
+			sellPrc = filterVal;
+		}
+		
+/*		if(flag == 'lineFilter'){
+			lineFilter = filterVal;
+		}*/
+		
+		if(flag == 'collection'){
+			collection = filterVal;
+		}
+		
+		if(flag == 'ingredient'){
+			ingredient = filterVal;
+		}
+		
+		if(flag == 'exclusiv'){
+			exclusiv = filterVal;
+		}		
+		
+		if(flag == 'starPoint'){
+			starPoint = filterVal;
+		}
+		
+		if(pageNo == undefined){
+			pageNo = 1;
+		}
+		
+		if($('#changeSort').val() == undefined){
+			$('#changeSort').val(5);
+		}
+		
+		if(this.readAjaxObj) {
+			this.readAjaxObj.abort();
+		}
+		
+		var dpCateId = $(form).find('[name=dpCateId]').val();
+		var refDpCateId = $(form).find('[name=refDpCateId]').val();
+		
+		if(!rd.util.hash.isEmpty()){
+			var obj = rd.util.hash.getHash();
+			
+			dpCateId = obj['dpCateId'];
+			refDpCateId = obj['refDpCateId'];
+			$('#dpCateCd').val(obj['dpCateCd']);
+			$('#changeSort').val(obj['sortKey']);
+			character = obj['character'];
+			sellPrc = obj['sell'];
+			/*lineFilter = obj['line'];*/
+			
+			collection = obj['collection'];
+			ingredient = obj['ingredient'];
+			exclusiv = obj['exclusiv'];
+			
+			starPoint = obj['starPoint'];
+			$('input.charater').each(function(i,v){
+				if($(v).val() == character) $(v).prop('checked', true).parent().addClass('checked').parents('li.side-filter-li').addClass('on');
+			});
+			$('input.sellPrcFilter').each(function(i,v){
+				if($(v).val() == sellPrc) $(v).prop('checked', true).parent().addClass('checked').parents('li.side-filter-li').addClass('on');
+			});
+			/*$('input.lineFilter').each(function(i,v){
+				if($(v).val() == lineFilter) $(v).prop('checked', true).parent().addClass('checked').parents('li.side-filter-li').addClass('on');
+			});*/
+
+			$('input.collection').each(function(i,v){
+				if($(v).val() == collection) $(v).prop('checked', true).parent().addClass('checked').parents('li.side-filter-li').addClass('on');
+			});	
+			$('input.ingredient').each(function(i,v){
+				if($(v).val() == ingredient) $(v).prop('checked', true).parent().addClass('checked').parents('li.side-filter-li').addClass('on');
+			});	
+			$('input.exclusiv').each(function(i,v){
+				if($(v).val() == exclusiv) $(v).prop('checked', true).parent().addClass('checked').parents('li.side-filter-li').addClass('on');
+			});				
+			
+			$('input.starPoint').each(function(i,v){
+				if($(v).val() == starPoint) $(v).prop('checked', true).parent().addClass('checked').parents('li.side-filter-li').addClass('on');
+			});
+		}
+		
+		this.readAjaxObj = rd.Ajax.get({
+			url: '/display/category/list',
+			data: {
+				'pageNo'    : $('#pageNo').val(),
+				dpCateId    : dpCateId,
+				refDpCateId : refDpCateId,
+				dpCateCd    : $('#dpCateCd').val(),
+				sortKey     : $('#changeSort').val(),
+				character    : character,
+				sellPrcFilter     : sellPrc,
+				/*lineFilter  : lineFilter,*/
+				collection  : collection,
+				ingredient  : ingredient,
+				exclusiv  : exclusiv,
+				starPoint   : starPoint
+				
+			}
+		}).done(function(d) {
+			
+			// 개수 값 셋팅
+			$('#totalCount').html(d.totalCount+'개 제품');
+			
+			// 제품 리스트 없을 시 list-empty-tmpl에 inject
+			if(d.list.length == 0){
+				
+				rd.HtmlTemplate.inject(null, '#list-empty-tmpl', '#listMst', 'append');
+				
+			} else {
+				
+				$('#pageNo').val(d.pageNo + 1);
+				
+				// 제품 리스트 있을 시 list-tmpl에 inject
+				$.each(d.list, function(i, v){
+					
+					if(v.item.itemPrice.rgurPrc != null){
+						v.item.itemPrice.rgurPrc = rd.util.numberFormat.formatPrice(v.item.itemPrice.rgurPrc)
+					}
+					
+					v.item.itemPrice.sellPrc = rd.util.numberFormat.formatPrice(v.item.itemPrice.sellPrc)
+					
+					
+					var html = rd.HtmlTemplate.inject(v, '#list-tmpl', '#listMst', 'append');
+					
+					cl.Badge.setting({
+	    				'item' : v.item,
+	    				'itemPrice' : v.item.itemPrice,
+	    				'target' : $(html).find('[name=badge]')
+	            	});
+					
+					self.wish = $('[name=wishBtn]');
+					
+					if(v.wishYn == 'Y'){
+						self.wish.addClass('on');
+					}
+				});
+				
+				/* Criteo List Start 
+				var item = [];
+				$.each(d.list, function(i,v) {
+					// 상품코드 : v.item.itemCd, 수량 : v.qty, 가격 : v.item.itemPrice.sellPrc
+					if(i>3) item.push(v.item.itemCd);
+				});
+
+				var deviceCd = window.c.deviceEnv;
+        		var deviceTyp = 'd';
+        		if(deviceCd != 'device.env.pc') deviceTyp = 'm';
+        		
+				window.criteo_q = window.criteo_q || [];
+				window.criteo_q.push(
+				        { event: "setAccount", account: window.ads.CriteoShopId },
+				        { event: "setSiteType", type: deviceTyp },
+				        { event: "viewList", item: item }
+				);
+				 Criteo List End */
+			}
+			
+			// 제품 리스트 더 존재하는지 판단 후 더보기 버튼 삭제 및 생성
+			if(((d.pageNo) * d.pageSize) >= d.totalCount ){
+				$('#moreBtn').hide();
+			} else {
+				$('#moreBtn').show();
+			}
+			
+			/* Google Tag Manager Start */
+			googleItemList = d.list;
+			/* Google Tag Manager End */
+			
+		}).fail(function(e) {
+			e.alertError();
+		});
+	}
+	
+	// 더보기 버튼 이벤트 bind
+	cl.page.prototype.getListMore = function() {
+		$('#moreBtn').on('click', function(e){
+			e.preventDefault();
+			
+			
+			cl.page.getList();
+		});
+	}
+	
+	// 정렬 이벤트 bind
+	cl.page.prototype.changeSort = function(pageNo) {
+		$("#changeSort").on("change", function(){
+			// 페이지값 초기화
+			$('#pageNo').val(1);
+			// 템플릿 영역 초기화
+			$('#listMst').html('');
+			
+			$('.side-filter-in-checklist .selected').removeClass('selected');
+			$('.side-filter-in-checklist button').each(function(i, v){
+				v.value == $('#changeSort').val() ? $(this).parent().addClass('selected') : '';
+			});
+			
+			cl.page.getList(pageNo);
+			
+			$('.side-filter-in-checklist').trigger('refresh');
+			
+		});
+	}
+	
+	cl.page.prototype.changeSortMobile = function() {
+		$('.side-filter-in-checklist').find('button').on('click', function(){
+			$('.selected').removeClass('selected');
+			$(this).parent().addClass('selected');
+			
+			var temp;
+			
+			$('#changeSort').find('option').each(function(i, v) {			    
+			        v.value == $('.selected').find('button').val() ? temp=v.value : '';
+			})
+			
+			$('#changeSort').val(temp).attr('selected','selected').selectric("refresh");
+			$('#changeSort').trigger('change');
+			
+		});
+	}
+	
+	// 필터 중복선택 체크 함수
+	cl.page.prototype.filterChecked = function(){
+		
+		// 필터 초기화 Btn
+		$('#resetFilter').on('click', function (){
+			$('#itemCharacterList :checked').trigger('click');
+			$('#sellPrcList :checked').trigger('click');
+			/*$('#lineFilterList :checked').trigger('click');*/
+			
+			$('#collectionList :checked').trigger('click');
+			$('#ingredientList :checked').trigger('click');
+			$('#exclusiveList :checked').trigger('click');
+			
+			$('#starPointList :checked').trigger('click');
+		});
+		
+		// 제품특징 필터
+		$('#itemCharacterList li label').on('change', function (){
+			if($('#itemCharacterList :checked').length > 1){
+				$('#itemCharacterList :checked').trigger('click');
+			}
+			// 페이지값 초기화
+			var pageNo = $('#pageNo').val(1);
+			var character = $('#itemCharacterList :checked').val()
+			// 템플릿 영역 초기화
+			$('#listMst').html('');
+			cl.page.getList(pageNo, character, 'character');
+		});
+		
+		// 판매가 필터
+		$('#sellPrcList li label').on('change', function (){
+			if($('#sellPrcList :checked').length > 1){
+				$('#sellPrcList :checked').trigger('click');
+			}
+			
+			// 페이지값 초기화
+			var pageNo = $('#pageNo').val(1);
+			var sellPrc = $('#sellPrcList :checked').val()
+			flag = 'sellPrc';
+			// 템플릿 영역 초기화
+			$('#listMst').html('');
+			cl.page.getList(pageNo, sellPrc, 'sellPrc');
+		});
+		
+		// 라인별 필터
+		/*$('#lineFilterList li label').on('change', function (){
+			if($('#lineFilterList :checked').length > 1){
+				$('#lineFilterList :checked').trigger('click');
+			}
+			
+			// 페이지값 초기화
+			var pageNo = $('#pageNo').val(1);
+			var lineFilter = $('#lineFilterList :checked').val()
+			flag = 'lineFilter';
+			// 템플릿 영역 초기화
+			$('#listMst').html('');
+			cl.page.getList(pageNo, lineFilter, 'lineFilter');
+		});*/
+		
+		// 컬렉션 필터
+		$('#collectionList li label').on('change', function (){
+			if($('#collectionList :checked').length > 1){
+				$('#collectionList :checked').trigger('click');
+			}
+			
+			// 페이지값 초기화
+			var pageNo = $('#pageNo').val(1);
+			var collection = $('#collectionList :checked').val()
+			flag = 'collection';
+			// 템플릿 영역 초기화
+			$('#listMst').html('');
+			cl.page.getList(pageNo, collection, flag);
+		});	
+		
+		// 성분 필터
+		$('#ingredientList li label').on('change', function (){
+			if($('#ingredientList :checked').length > 1){
+				$('#ingredientList :checked').trigger('click');
+			}
+			
+			// 페이지값 초기화
+			var pageNo = $('#pageNo').val(1);
+			var ingredient = $('#ingredientList :checked').val()
+			flag = 'ingredient';
+			// 템플릿 영역 초기화
+			$('#listMst').html('');
+			cl.page.getList(pageNo, ingredient, flag);
+		});			
+		
+		// exclusive 필터
+		$('#exclusiveList li label').on('change', function (){
+			if($('#exclusiveList :checked').length > 1){
+				$('#exclusiveList :checked').trigger('click');
+			}
+			
+			// 페이지값 초기화
+			var pageNo = $('#pageNo').val(1);
+			var exclusiv = $('#exclusiveList :checked').val()
+			flag = 'exclusiv';
+			// 템플릿 영역 초기화
+			$('#listMst').html('');
+			cl.page.getList(pageNo, exclusiv, flag);
+		});				
+		
+		// 평점 필터
+		$('#starPointList li label').on('change', function (){
+			if($('#starPointList :checked').length > 1){
+				$('#starPointList :checked').trigger('click');
+			}
+			
+			// 페이지값 초기화
+			var pageNo = $('#pageNo').val(1);
+			var starPoint = $('#starPointList :checked').val()
+			// 템플릿 영역 초기화
+			$('#listMst').html('');
+			cl.page.getList(pageNo, starPoint, 'starPoint');
+		});
+		
+	}
+	
+	/* Google Tag Manager Start */
+	// Product Click 이벤트 bind
+	cl.page.prototype.bindProductClickEvent = function() {
+		/*
+		$('body').on('click', '.google-product-click', function(e){
+			e.preventDefault();
+		*/ 
+		$('body').on('click', '.google-product-click', function(){
+			var itemCd = $(this).data('itemCd');
+			
+//			console.log('googleItemList.length :'+ googleItemList.length);
+//			console.log('itemCd :'+itemCd);
+			
+			$.each(googleItemList, function(i,v) {
+				// 상품명 : v.item.itemNm, 상품코드 : v.item.itemCd, 가격 : v.item.itemPrice.sellPrc
+				if(v.item.itemCd == itemCd) {
+					//Google Analytics 데이터 전송
+					cl.page.googleProductClick(v);
+					
+					return false;
+				}				
+			});
+		});
+	}
+	
+	//Google Analytics 데이터 전송 - productClick 
+	cl.page.prototype.googleProductClick = function(productItemVal) {
+		var dpCateNm1 = $(form).find('[name=dpCateNm1]').val(); //main category
+		var dpCateNm2 = $(form).find('[name=dpCateNm2]').val(); //sub category
+		
+//		console.log('productClick');
+//		console.log(productItemVal);
+//		console.log('name :'+ productItemVal.item.itemNm);
+//		console.log('id :'+ productItemVal.item.itemCd);
+//		console.log('price :'+ productItemVal.item.itemPrice.sellPrc);
+//		console.log('brand : 고디바');
+//		console.log('category :'+ dpCateNm2);
+//		console.log('dpCateNm1 :'+dpCateNm1);
+		/*
+		dataLayer.push({
+			'event': 'productClick',
+			'ecommerce': {
+			  'click': {
+				'actionField': {'list': 'Category Click Results'},      // Optional list property.
+				'products': [{
+				  'name': productItemVal.item.itemNm,                      // Name or ID is required.
+				  'id': productItemVal.item.itemCd,
+				  'price': productItemVal.item.itemPrice.sellPrc,
+				  'brand': '고디바',
+				  'category': dpCateNm2
+				 }]
+			   }
+			 },
+			 'eventCallback': function() {
+			   document.location = "/item/" + productItemVal.item.itemCd;
+			 }
+		});
+		*/
+	}
+	
+	//Google Analytics 데이터 전송 - addToCart
+	cl.page.prototype.googleAddCart = function(productItemVal) {
+		var dpCateNm1 = $(form).find('[name=dpCateNm1]').val(); //main category
+		var dpCateNm2 = $(form).find('[name=dpCateNm2]').val(); //sub category
+		
+//		console.log('addToCart');
+//		console.log(productItemVal);
+//		console.log('name :'+ productItemVal.item.itemNm);
+//		console.log('id :'+ productItemVal.item.itemCd);
+//		console.log('price :'+ productItemVal.item.itemPrice.sellPrc);
+//		console.log('brand : 고디바');
+//		console.log('category :'+ dpCateNm2);
+//		console.log('quantity : 1');
+//		console.log('dpCateNm1 :'+dpCateNm1);
+		/*
+		dataLayer.push({
+			'event': 'addToCart',
+			'ecommerce': {
+			  'currencyCode': 'KRW',
+			  'add': {                                // 'add' actionFieldObject measures.
+			    'products': [{                        //  adding a product to a shopping cart.
+			      'name': productItemVal.item.itemNm,
+			      'id': productItemVal.item.itemCd,
+			      'price': productItemVal.item.itemPrice.sellPrc,
+			      'brand': '고디바',
+			      'category': dpCateNm2,
+			      'quantity': 1
+			     }]
+			  }
+			}
+		});
+		*/
+	}
+	 
+	 /** 레코벨 */
+    var Recobell = new function() {
+    	
+    	this.getList = function(options){
+    		options = options || {};
+    		
+    		options = $.extend({
+    			cuid : recobell.cuid,	// 레코벨 고유 키 
+    			format: 'jsonp',		// json or jsonp
+    			size : "12",			// 추천 갯수
+    			target : 'rb-list',		// targetId
+    			recCode : 'm002'		// 추천
+    		}, options);
+    		
+    		// iids (추천 제품 타겟 itemCd)
+    		options.iids = $('#'+options.target).data('itemCd');
+    		
+    		// 레코벨 api url 정보
+    		var url = "//rb-rec-api-apne1.recobell.io/rec/" + options.recCode;
+    		
+    		rd.Ajax.get({
+    			dataType : "jsonp",
+    			url : url,
+    			data : options,
+    		}).done(function (d) {
+    			if(d.results == null || d.results.length == 0){
+    				//rd.HtmlTemplate.inject(null, '#rb-list-empty-tmpl', '#'+options.target , 'append');
+    				$('.detail-hot-issue-carousel').hide();
+    				return;
+    			}
+    			
+    			if(d.results != null && d.results.length > 0){
+    				$.each(d.results, function(i, v){
+    					v.price = rd.util.numberFormat.formatPrice(v.product.salePrice);
+    					v.rccode = (recobell.device == "PW") ? "pc_detail" : "m_detail"; // 레코벨 로그 정보 Parameter
+    					rd.HtmlTemplate.inject(v, '#rb-list-tmpl', '#'+options.target , 'append');
+    				});
+    				
+    				// 레코벨 슬라이더 초기화
+    				window.whatsHotMyhomeCarouselDestroy();
+    				window.whatsHotMyhomeCarouselRefreash();
+    			}
+            }).fail(function (e) {
+                // e.alertError();
+            });
+    	}
+    }
+	
+	/* Google Tag Manager End */
+	
+	$(function() {
+		cl.page = new cl.page();
+	});
+	
+	return cl.page;
+})();

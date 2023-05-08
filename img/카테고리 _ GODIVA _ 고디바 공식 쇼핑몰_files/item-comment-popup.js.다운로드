@@ -1,0 +1,642 @@
+(function() {
+	var self;
+	var isChange = false;
+
+	var CommentPopup = new function() {
+		self = this;
+    	
+    	this.setting = function(options) {
+    		options = $.extend({
+				'callback' : ''
+				, 'mode' : 'reg'
+				, 'data' : ''
+			}, options);
+    		
+//    		if(!options.callback || !$.isFunction(options.callback)){
+//				return;
+//			}
+    		
+    		
+    		bindPopupBtnEvent(options);
+    		bindFileBtnEvent(options);
+    		bindCheckEvent();
+    		
+    		if(options.mode == 'view' ) {
+    			cl.commentPopup.getViewInfo(options);
+    		} else if(options.mode == 'reg' ) {
+    			cl.commentPopup.getRegInfo(options);
+    		} else if(options.mode == 'mod' ) {
+    			cl.commentPopup.getModInfo(options);
+    		} else if(options.mode == 'bestView' ) {
+    			cl.commentPopup.getBestViewInfo(options);
+    		}
+    	}
+    	
+    	this.closeBtn = function() {
+    		// 기존 닫기버튼 Event 제거
+    		$('#productReviewWrite').find('.close').off('click');
+    		$('#productReviewWrite').off('click', '[name=itemCommentPopupCloseBtn]');
+    		$('#productReviewWrite').on('click', '[name=itemCommentPopupCloseBtn]', function(e){
+    			e.preventDefault();
+    			
+    			// 데이터 변경이 있을경우
+        		if(isChange){
+        			if(confirm('제품평 쓰기 창을 닫겠습니까? 작성중인 제품평은 사라집니다.')){
+        				isChange = false;
+        			} else {
+        				return;
+        			}
+        		}
+    			
+    			window.popupBase.closePopup( $('#productReviewWrite') );
+    		});
+    	}
+    	
+    	this.getViewInfo = function(options) {
+    		//console.log("getViewInfo");
+    		return ;
+    	}
+    	
+    	this.getBestViewInfo = function(options) {
+    		//console.log("getBestViewInfo");
+    		getBestView(options.data.itemCd);
+    	}
+    	
+    	this.getRegInfo = function(options) {
+    		//console.log("getRegInfo");
+    		
+    		$('#icmt-mst').empty();
+    		
+    		// form data reset
+    		var form = $('#icmt-write');
+    		form[0].reset();
+
+    		getRegView(options.data.itemCmtId);
+//    		getRegView(options);
+    	}
+    	
+    	this.getModInfo = function(options) {
+    		//console.log("getModInfo");
+    		
+    		
+    		$('#icmt-mst').empty();
+    		
+    		// form data reset
+    		var form = $('#icmt-write');
+    		form[0].reset();
+    		
+    		getModView(options.data.itemCmtId);
+    	}
+    	
+    	this.popupClose = function() {
+    		$('.detail-product-write-popup').find('.btn.close').trigger('click');
+    	}
+    	
+    	var getView = function( itemCd ) {
+    		window.popupBase.layerPopup('#best-product-reply', 'dim', 'fixable');
+    	};
+    	
+    	var getBestView = function( itemCd ) {
+    		
+    		rd.Ajax.post(null, {
+                url : '/item/itemComment/bestView' ,
+                traditional : true,
+                data : {
+                	'itemCd' : itemCd
+                }
+            }).done(function (d) {
+
+            	$('#icmt-best-mst').empty();
+                
+            	// 상세 화면 inject
+            	var html = rd.HtmlTemplate.inject(d.result, '#item-comment-popup-best-product-reply-tmpl', '#icmt-best-mst');
+            	
+            	// CART 버튼 이벤트
+            	$(html).on('click', '[name=cartBtn]', function(e){
+            		e.preventDefault();
+            		
+                    var itemCdList = new Array();
+                    itemCdList.push($(this).data('itemCd'));
+            		
+            		cl.Cart.setting({
+                    	'callback' : '',
+                    	'data' : {
+                            'itemCdList' : itemCdList 
+                    	}
+                    });
+            	});
+            	
+            	// 위시 버튼 이벤트
+            	$(html).on('click', '[name=wishBtn]', function(e){
+            		e.preventDefault();
+            		if(window.c.mbrsCardNo == ''  && window.c.loginId != ''){
+        	        	
+        	        } else {
+	                    var itemCdList = new Array();
+	                    itemCdList.push($(this).data('itemCd'));
+	            		
+	            		cl.Wish.setting({
+	                    	'target' : $(this),
+	                    	'data' : {
+	                            'itemCdList' : itemCdList 
+	                    	}
+	                    });
+        	        }
+            	});
+            	
+				window.popupBase.layerPopup('#best-product-reply', 'dim', 'fixable');
+            	
+            }).fail(function (e) {
+                e.alertError();
+            }).always(function (e) {
+            });
+    		
+    		
+    	};
+    	
+    	var getRegView = function() {
+    		rd.HtmlTemplate.inject(null, '#item-comment-reg-popup-tmpl', '#icmt-mst');
+    		
+    		window.popupBase.layerPopup('#productReviewWrite', 'dim', 'fixable');
+    		cl.commentPopup.closeBtn();
+    	};
+    	
+    	var getModView = function(itemCmtId) {
+        	
+            // Ajax 중복 호출 제어
+            if(self.readAjaxObj) {
+                self.readAjaxObj.abort();
+            }
+            
+            //console.log("getModView =" + itemCmtId);
+            
+            self.readAjaxObj = rd.Ajax.post(null, {
+                url : '/item/itemComment/' + itemCmtId ,
+                traditional : true,
+                data : {
+                }
+            }).done(function (d) {
+                
+            	// 상세 화면 inject
+            	rd.HtmlTemplate.inject(d.result, '#item-comment-mod-popup-tmpl', '#icmt-mst');
+            	
+            	if( ! $.isEmptyObject( d.result.attachList) && d.result.attachList.length > 0  ) {
+            		// 상세 파일 inject
+            		rd.HtmlTemplate.inject(d.result.attachList[0], '#item-comment-popup-filelist-tmpl', '#attachList');
+            	}
+            	
+            	
+            	// 별점 setting
+            	var $start_Target = $('.js-star-score');
+    			var $star_Mark = $start_Target.find('.star-mk');
+    			var $star_Num = $start_Target.find('.score-num');
+        		var starPt = d.result.starPt;
+				$star_Mark.removeClass('on');
+				$star_Mark.each(function(i, v){
+					if( i < starPt ) {
+						$(v).addClass("on").prevAll("a").addClass("on");
+					}
+				});
+				var inputStarPt = $start_Target.find('#starPt');
+				inputStarPt.val(starPt);
+				$star_Num.text(starPt);
+				
+				// 글자수 setting
+				$('#productReviewWrite [name=tit]').next('.pop-text-numcheck').text('(' + getByteLength(d.result.tit) + '/100Byte)' );
+				$('#productReviewWrite [name=cont]').next('.pop-text-numcheck').text('(' + getByteLength(d.result.cont) + '/4000Byte)' );
+                
+            	window.popupBase.layerPopup('#productReviewWrite', 'dim', 'fixable');
+            	cl.commentPopup.closeBtn();
+            	
+            }).fail(function (e) {
+                e.alertError();
+            }).always(function (e) {
+            });
+        };
+        
+        var bindPopupBtnEvent = function(options) {
+        	
+        	$('body').off('click', '#icmt-reg-btn');
+        	$('body').on('click', '#icmt-reg-btn', function(e){
+        		e.preventDefault();
+        		
+        		var form = $('#icmt-write');
+        		
+        		// 유효성 검증
+                if (! validate(document.forms['icmt-write'])) {
+                    return;
+                }
+        		
+        		var itemCd = options.data.itemCd;
+    			if(!itemCd){
+    				alert('제품정보가 없습니다.');
+    				return;
+    			}
+
+    			var ordNo = !options.data.ordNo ? '' : options.data.ordNo;
+    			var ordItemSeq = !options.data.ordItemSeq ? '' : options.data.ordItemSeq;
+        		if( (!ordNo && ordItemSeq) ||
+        			(ordNo && !ordItemSeq) ){
+        			alert('주문정보가 올바르지 않습니다.');
+        			return;
+        		}
+        	
+        		var orderItemId =  options.data.orderItemId;
+        		var regType =  options.data.regType;
+        		
+        		var tranYmd 	=  options.data.tranYmd;
+        		var strCd 		=  options.data.strCd;
+        		var posNo 		=  options.data.posNo;
+        		var rcptNo 		=  options.data.rcptNo;
+
+        		// 와이즈 로그
+        		var itemCode = itemCd;
+        		var starPoint = form.find('[name=starPt]').val();
+        		
+                if(rd.Form.submitting(form)) return false;
+
+                if(!confirm('제품평을 등록하시겠습니까?'))
+                	return;
+                
+                // submit 진행중으로 변경 
+                rd.Form.submitting(form, true);
+                
+        		rd.Ajax.post(form, {
+                    url : '/item/itemComment/create?_format=json&itemCode=' + itemCode + '&starPoint=' + starPoint,
+                    traditional : true,
+                    data : {
+                    	'itemCd' 		: itemCd,
+                    	'regType'		: regType,
+                    	'ordNo' 		: ordNo,
+                    	'ordItemSeq' : ordItemSeq,
+                    	'tranYmd' 	: tranYmd, 
+                    	'strCd' 		: strCd, 
+                    	'posNo' 		: posNo, 
+                    	'rcptNo' 		: rcptNo
+                    }
+                }).done(function (d) {
+                	
+                	// 등록 팝업 닫기
+                	window.popupBase.closePopup( $('#productReviewWrite') );
+                	
+                	
+                	// 등록 후 제품평 갱신
+                	options.callback(); // 조회
+                    
+                }).fail(function (e) {
+                    e.alertError();
+                }).always(function (e) {
+                	rd.Form.submitting(form, false);
+                });
+        		
+        	});
+        	
+        	$('body').off('click', '#icmt-mod-btn');
+        	$('body').on('click', '#icmt-mod-btn', function(e){
+        		e.preventDefault();
+        		
+        		var form = $('#icmt-write');
+        		
+        		// 유효성 검증
+                if (! validate(document.forms['icmt-write'])) {
+                    return;
+                }
+        		
+//        		var dataSet 	= $('#modIcmt');
+//        		var itemCmtId 	= dataSet.data('itemCmtId');
+//        		var itemCd 		= dataSet.data('itemCd');
+        		
+        		var itemCmtId 	= options.data.itemCmtId;
+
+                if(rd.Form.submitting(form)) return false;
+                
+        		if(!confirm('수정을 완료하시겠습니까?'))
+    				return;
+                
+                // submit 진행중으로 변경 
+                rd.Form.submitting(form, true);
+        		
+        		self.readAjaxObj = rd.Ajax.post(form, {
+                    url : '/item/itemComment/modify?_format=json',
+                    traditional : true,
+                    data : {
+//                    	'itemCd' : itemCd,
+                    	'itemCmtId' : itemCmtId,
+                    }
+                }).done(function (d) {
+                	
+                	// 팝업 닫기
+//                	cl.commentPopup.popupClose();
+                	window.popupBase.closePopup( $('#productReviewWrite') );
+                	
+                	// 등록 후 제품평 갱신
+                	options.callback(1); // 조회
+                    
+                }).fail(function (e) {
+                    e.alertError();
+                }).always(function (e) {
+                	rd.Form.submitting(form, false);
+                });
+        		
+        	});
+        	
+        	$('body').off('click', '#icmt-del-btn');
+        	$('body').on('click', '#icmt-del-btn', function(e){
+        		e.preventDefault();
+        		
+        		var form = $('#icmt-write');
+        		
+//        		var dataSet 	= $('#modIcmt');
+//        		var itemCmtId 	= dataSet.data('itemCmtId');
+//        		var itemCd 		= dataSet.data('itemCd');
+        		
+        		var itemCmtId 	= options.data.itemCmtId;
+
+        		// 와이즈 로그
+        		var itemCode = options.data.itemCd;
+        		var starPoint = form.find('[name=starPt]').val();
+        		
+                if(rd.Form.submitting(form)) return false;
+                
+        		if(!confirm('정말로 제품평을 삭제하시겠습니까?\n제품평 삭제시 적립된 포인트는 소멸됩니다.'))
+        			return;
+                
+                // submit 진행중으로 변경 
+                rd.Form.submitting(form, true);
+        		
+        		rd.Ajax.post(form, {
+                    url : '/item/itemComment/remove?_format=json&itemCode=' + itemCode + '&starPoint=' + starPoint,
+                    traditional : true,
+                    data : {
+                    	'itemCmtId' : itemCmtId
+                    }
+                }).done(function (d) {
+                	
+                	// 팝업 닫기
+                	window.popupBase.closePopup( $('#productReviewWrite') );
+                	
+                	// 등록 후 제품평 갱신
+                	options.callback(); // 조회
+                    
+                }).fail(function (e) {
+                    e.alertError();
+                }).always(function (e) {
+                	rd.Form.submitting(form, false);
+                });
+        		
+        	});
+        }
+        
+        var bindFileBtnEvent = function(options) {
+        	
+        	$('body').off('change', '#productReviewWrite [name=attachFile]');
+        	$('body').on('change', '#productReviewWrite [name=attachFile]', function(e){
+    			e.preventDefault();
+    			
+    			if(e.target.value == '') return;
+    			
+    			var $this = $(this);
+    			var atchGrpId = $("#productReviewWrite input[name=atchGrpId]").val();
+    			
+//    			cl.ImageUpload.setUploadType('file');
+    			cl.ImageUpload.setUploadType('image');
+    			cl.ImageUpload.setAtchGrpId(atchGrpId);
+    			cl.ImageUpload.ajax(this, {
+    				data: rd.util.url.toObjectProperty({
+    			        list: [ { label: 'default' } ]
+    			    })
+    			}).done(function(d) {
+    				
+    				$('#attachList').empty();
+    				
+    				var file = d.files[0] ;
+    				
+    				$("#productReviewWrite input[name=atchGrpId]").val(file.atchGrpId);
+    				$("#productReviewWrite input[name=atchId]").val(file.atchId);
+    				
+    				rd.HtmlTemplate.inject(file, '#item-comment-popup-filelist-tmpl', '#attachList');
+    				
+    			}).fail(function(e) {
+    				e.alertError();
+    			}).always(function() {
+    				var target = $(e.target);
+    				target.attr("name", "attachFile")
+    			});
+    		});
+    		
+        	$('body').off('click', '#cmt-file-del-btn');
+    		$('body').on('click', '#cmt-file-del-btn', function(e){
+    			e.preventDefault();
+    			
+    			var $this = $(this)
+    			var item = $this.parent('#file-item'); 
+    			var atchId = item.data('atchId');
+    			var atchGrpId = item.data('atchGrpId');
+    			
+    			rd.Ajax.get({
+    				url: '/upload/file/remove',
+    				data: {
+    					'atchId' : atchId	
+    				}
+    			}).done(function(d){
+    				$("#productReviewWrite input[name=atchGrpId]").val('');
+    				$("#productReviewWrite input[name=atchId]").val('');
+    				$this.parent("#file-item").remove();
+    			});
+    			
+    		});
+        }
+        
+        var bindCheckEvent = function() {
+        	
+        	$('body').off('paste', '#productReviewWrite [name=tit]');
+        	$('body').on('paste', '#productReviewWrite [name=tit]', function(e){
+        		  setTimeout(function(){
+        		       	var checkLength = getByteLength( $('#productReviewWrite [name=tit]').val() );
+                		var spanTag = $('<span>').text('100Byte');
+                		
+                		if(checkLength > 100 ) {
+                			this.value = cutByteLength(this.value, 100);
+                			checkLength = getByteLength(this.value);
+                		}
+                		
+        		       	$('#productReviewWrite [name=tit]').next('.pop-text-numcheck').text('(' + checkLength + '/100Byte)' );
+        		  },100);
+        	});
+        	
+        	$('body').off('change keyup', '#productReviewWrite [name=tit]');
+        	$('body').on('change keyup', '#productReviewWrite [name=tit]', function(e){
+        		var checkLength = getByteLength( $('#productReviewWrite [name=tit]').val() );
+        		var spanTag = $('<span>').text('100Byte');
+        		
+        		if(checkLength > 100 ) {
+        			this.value = cutByteLength(this.value, 100);
+        			checkLength = getByteLength(this.value);
+        		}
+        		
+        		$('#productReviewWrite [name=tit]').next('.pop-text-numcheck').text('(' + checkLength + '/100Byte)' );
+        	});
+        	
+        	$('body').off('paste', '#productReviewWrite [name=cont]');
+        	$('body').on('paste', '#productReviewWrite [name=cont]', function(e){
+        		  setTimeout(function(){
+        			  	var checkLength = getByteLength( $('#productReviewWrite [name=cont]').val() );
+                		var spanTag = $('<span>').text('1000Byte');
+                		
+                		if(checkLength > 4000 ) {
+                			this.value = cutByteLength(this.value, 4000);
+                			checkLength = getByteLength(this.value);
+                		}
+                		
+        		       	$('#productReviewWrite [name=cont]').next('.pop-text-numcheck').text('(' + checkLength + '/4000Byte)' );
+        		  },100);
+        	});
+        	
+        	$('body').off('change keyup', '#productReviewWrite [name=cont]');
+        	$('body').on('change keyup', '#productReviewWrite [name=cont]', function(e){
+        		var checkLength = getByteLength( $('#productReviewWrite [name=cont]').val() );
+        		var spanTag = $('<span>').text('1000Byte');
+        		
+        		if(checkLength > 4000 ) {
+        			this.value = cutByteLength(this.value, 4000);
+        			checkLength = getByteLength(this.value);
+        		}
+        		
+        		$('#productReviewWrite [name=cont]').next('.pop-text-numcheck').text('(' + checkLength + '/4000Byte)' );
+        		
+        		
+        	});
+        	
+        	
+        	// 별점 클릭 이벤트
+        	$('body').off('click', '#productReviewWrite .star-mk');
+        	$('body').on('click', '#productReviewWrite .star-mk', function(e){
+        		e.preventDefault();
+        		
+        		var $start_Target = $('.js-star-score');
+    			var $star_Mark = $start_Target.find('.star-mk');
+    			var $star_Num = $start_Target.find('.score-num');
+        		
+				$star_Mark.removeClass('on');
+				$(this).addClass("on").prevAll("a").addClass("on");
+				var num = $(this).index();
+				
+				var inputStarPt = $start_Target.find('#starPt');
+				inputStarPt.val(num + 1);
+
+				$star_Num.text(num + 1);
+        		
+        		
+        	});
+        	
+        	$('body').off('change', '#productReviewWrite input');
+        	$('body').on('change', '#productReviewWrite input', function(e){
+        		isChange  = true;
+        	});
+        	
+        	$('body').off('change', '#productReviewWrite textarea');
+        	$('body').on('change', '#productReviewWrite textarea', function(e){
+        		isChange  = true;
+        	});
+        }
+        
+        
+        var validate = function(form) {
+        	var result = false;
+        	var elem = form.elements;
+        	var v = new rd.Valid();
+        	
+        	v.add(elem['starPt'], 'required', true, '별점을 입력해 주세요.');
+    		v.add(elem['tit'], 'required', true, '제목을 입력해 주세요.');
+    		v.add(elem['cont'], 'required', true, '내용을 입력해 주세요.');
+    		
+    		v.add(elem['tit'], 'max-byte', '100', '제목은 100Byte 까지 입력가능합니다.');
+    		v.add(elem['cont'], 'max-byte', '4000', '내용은 4000Byte 까지 입력가능합니다.');
+    		
+    		// 블로그 형식 체크
+    		if ( ! $.isEmptyObject( elem['blogNm'].value ) ) {
+    			v.add(elem['blogNm'], 'max-byte', '200', '블로그명은 200Byte 까지 입력가능합니다.');
+    			v.add(elem['blogUrlAddr'], 'required', true, '블로그URL을 입력해 주세요.');
+    		}
+    		
+    		if ( ! $.isEmptyObject( elem['blogUrlAddr'].value ) ) {
+    			v.add(elem['blogUrlAddr'], 'max-byte', '500', '블로그URL은 500Byte 까지 입력가능합니다.');
+    			v.add(elem['blogNm'], 'required', true, '블로그명을 입력해 주세요.');
+    			
+    			// Url 형식 Validation - 임시 제거
+        		// v.add(elem['blogUrlAddr'], 'regexp', /^(https?):\/\/([^:\/\s]+)(:([^\/]*))?((\/[^\s/\/]+)*)?\/([^#\s\?]*)(\?([^#\s]*))?(#(\w*))?$/, 'URL형식으로 입력해 주세요.');
+    			// v.add(elem['blogUrlAddr'], 'regexp', /^(https?:\/\/)?((([a-z\d](([a-z\d-]*[a-z\d]))|([ㄱ-힣])*)\.)+(([a-zㄱ-힣]{2,}))|((\d{1,3}\.){3}\d{1,3}))(\:\d+)?(\/[-a-z\d%_.~+]*)*(\?[;&a-z\d%_.~+=-]*)?(\#[-a-z\d_]*)?$/, 'URL형식으로 입력해 주세요.');
+    		}
+    		
+    		
+    		
+    		
+    		v.setDefaultCallback(function(e) {
+    			alert(e.message);
+    			e.focusing();
+    		});
+    		
+    		result = v.validate();
+        	
+        	return result;
+        }
+        
+        // 바이트 계산
+        var getByteLength = function(str, bytePerUnicode) {
+        	var byte = bytePerUnicode || 3;
+			
+			var b = 0;
+			var c = '';
+			
+			for(var i = 0; c = str.charCodeAt(i++); b += c >> 11 ? byte : c >> 7 ? 2 : 1);
+			
+			return b;
+        }
+        
+        var getCharByteLength = function(ch) {
+
+    		if (ch == null || ch.length == 0) {
+    			return 0;
+    		}
+
+    		var charCode = ch.charCodeAt(0);
+
+    		if (charCode <= 0x00007F) {
+    			return 1;
+    		} else if (charCode <= 0x0007FF) {
+    			return 2;
+    		} else if (charCode <= 0x00FFFF) {
+    			return 3;
+    		} else {
+    			return 4;
+    		}
+        }
+        
+        var cutByteLength = function(s, len) {
+
+    		if (s == null || s.length == 0) {
+    			return 0;
+    		}
+    		var size = 0;
+    		var rIndex = s.length;
+
+    		for ( var i = 0; i < s.length; i++) {
+    			size += getCharByteLength(s.charAt(i));
+    			if( size == len ) {
+    				rIndex = i + 1;
+    				break;
+    			} else if( size > len ) {
+    				rIndex = i;
+    				break;
+    			}
+    		}
+
+    		return s.substring(0, rIndex);
+    	}
+    }
+    
+    $(function() {
+        cl.commentPopup = CommentPopup;
+    });
+    
+})();

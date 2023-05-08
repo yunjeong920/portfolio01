@@ -1,0 +1,71 @@
+var isLocalhost = location.hostname == "localhost";
+//TODO TEMP
+//var nativeCarNumberList = ['01가1111', '01가2222', '01가3333'];
+var nativeCarNumberList = [];
+
+function execute(url) {
+	//debugger;
+	var iframe = document.createElement("IFRAME");
+	iframe.setAttribute("src", url);
+	document.documentElement.appendChild(iframe);
+	iframe.parentNode.removeChild(iframe);
+	iframe = null;
+}
+
+// 	godiva://snsLogin/?snsType=NAVER
+
+
+function _setUrlWithArguments(fn, args) {
+
+	var url = 'godiva://';
+
+	if(args != '') {
+		url = url + fn + args[0];
+	} else {
+		url = url + fn;
+	}
+	console.log(url);
+	return url;
+}
+
+if(window.Native) {
+
+} else {
+
+	window.Native = {};
+
+	// sns로그인 클릭
+	window.Native.snsLogin = function() {
+		execute(_setUrlWithArguments("snsLogin/?snsType=", arguments));
+	};
+}
+
+
+window.bridge = (function() {
+
+	function snsLoginResult(result, snsId, snsName, snsEmail, snsType) {		// 위도, 경도
+//		setDeviceLatLng(lat, lng);
+//		alert(result + " : " + snsId + " : " + snsName + " : " + snsEmail + " : " + snsType);
+		
+		if("success" == result) {
+			$("#snsType").val(snsType);
+			$("#snsId").val(snsId);
+			$("#snsNm").val(snsName);
+			$("#snsMail").val(snsEmail);
+			MemberChk();			
+		} else {
+			alert("아이디 또는 비밀번호가 일치하지 않습니다.");
+		}
+	}
+
+	return  {
+		snsLoginResult : snsLoginResult
+	}
+
+})();
+
+
+
+$(function() {
+
+});

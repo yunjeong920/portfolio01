@@ -1,0 +1,225 @@
+;(function () {
+
+    var App = new function() {
+        var self = this;
+
+        /**
+         * App 환경인지 판단
+         */
+        this.isApp = function() {
+            if(c.isApp == 'Y') {
+                return true;
+            }
+
+            return false;
+        };
+
+        /**
+         * <p>CrowBridge (오작교, kimdm 지음)</p>
+         * Javascript 로 Web 과 App 을 연결하는 Bridge API 를 정의한다
+         *
+         * JavascriptInterface 를 App Native 에서 적용시
+         * 함수를 Web 에서 정의하게 되면 발동이 되지 않는 문제가 있어
+         * 실제로 해당 함수를 정의는 하지 않고 바로 실행한다
+         */
+        this.CrowBridge = {
+            /**
+             * 디바이스 회원 연결
+             */
+            attachDeviceToMember: function() {
+                if(! self.isApp()) { return; }
+
+                console.log('[CrowBridge] attachDeviceToMember executed');
+
+                try {
+                    CrowBridge.attachDeviceToMember();
+                }
+                catch(e) { 
+                	webkit.messageHandlers.attachDeviceToMember.postMessage('');
+                	return; 
+                	}
+            },
+
+            /**
+             * 카테고리 열기
+             */
+            openCategory: function() {
+                if(! self.isApp()) { return; }
+
+                console.log('[CrowBridge] openCategory executed');
+
+                try {
+                    CrowBridge.openCategory();
+                }
+                catch(e) { 
+                	webkit.messageHandlers.openCategory.postMessage('');
+                    return; 
+                }
+            },
+
+            /**
+             * 뱃지 카운트 설정
+             * @param count
+             */
+            setBadgeCount: function(count) {
+                if(! self.isApp()) { return; }
+
+                console.log('[CrowBridge] setBadgeCount executed');
+
+                // 카운트 값이 없는 경우 0 처리
+                count = count || 0;
+
+                try {
+                    CrowBridge.setBadgeCount(count);
+                }
+                catch(e) { 
+                	webkit.messageHandlers.setBadgeCount.postMessage(count);
+                	return; 
+                	}
+            },
+
+            /**
+             * 로그아웃 이벤트
+             * @param count
+             */
+            onLogout: function() {
+                if(! self.isApp()) { return; }
+
+                console.log('[CrowBridge] onLogout executed');
+
+                try {
+                    CrowBridge.onLogout();
+                }
+                catch(e) { 
+                	webkit.messageHandlers.onLogout.postMessage('');
+                	return; 
+                	}
+            },
+
+            /**
+             * URL 이동 (외부 브라우저)
+             * @param count
+             */
+            redirectExternal: function(url) {
+                if(! self.isApp()) { return; }
+
+                console.log('[CrowBridge] redirectExternal executed');
+
+                // URL 이 없는 경우 수행하지 않음
+                if(! url) {
+                    return;
+                }
+
+                try {
+                    CrowBridge.redirectExternal(url);
+                }
+                catch(e) { 
+                	webkit.messageHandlers.redirectExternal.postMessage(url);
+                	return; 
+                	}
+            },
+            
+            /**
+             * SNS 로그인		(최대길 : 2018-11-14)
+             * @param count
+             */
+            snsLogin: function(snsType) {
+                if(! self.isApp()) { return; }
+
+                console.log('[CrowBridge] snsLogin executed');
+
+                // URL 이 없는 경우 수행하지 않음
+                if(! snsType) {
+                    return;
+                }
+
+                try {
+                    CrowBridge.snsLogin(snsType);
+                }
+                catch(e) { return; }
+            }            
+        };
+
+        /**
+         * CrowBridge 이벤트들을 바인딩
+         */
+        this.bindCrowBridgeEvents = function() {
+            crowBridgeEvent.bindOpenCategory();
+            crowBridgeEvent.bindLogout();
+        };
+
+        /**
+         * CrowBridge 발동 이벤트 정의
+         */
+        var crowBridgeEvent = {
+
+            /**
+             * 카테고리 열림
+             */
+            bindOpenCategory: function() {
+                if(! self.isApp()) {
+                    return;
+                }
+
+                $('.menu-toggler')
+                    .off('click')
+                    .on('click', function(e) {
+                        e.preventDefault();
+
+                        self.CrowBridge.openCategory();
+                    });
+            },
+
+            /**
+             * 로그아웃
+             */
+            bindLogout: function() {
+                $('body').on('click', '.logout', function(e) {
+                    self.CrowBridge.onLogout();
+                });
+            }
+        };
+    };
+
+    (function() {
+        cl.App = App;
+    })();
+
+    return cl;
+})();
+
+window.bridge = (function() {
+
+	function snsLoginResult(result, snsId, snsName, snsEmail, snsType) {		// 위도, 경도
+//		setDeviceLatLng(lat, lng);
+		alert(result + " : " + snsId + " : " + snsName + " : " + snsEmail + " : " + snsType);
+	}
+
+	/*function onNewMsg() {
+		//alert("onNewMsg");
+		$("#newPushMsgMark").show();
+		$.cookie('newBadge', 'ok', { expires: 30, path: '/'});
+	}*/
+
+	return  {
+		snsLoginResult : snsLoginResult
+/*		, onNewMsg : onNewMsg
+		, onLoad : onLoad
+		, onGetDeviceId : onGetDeviceId
+		, onGetAppVersion : onGetAppVersion
+		, onGetStatusNoti : onGetStatusNoti
+		, onSetStatusNoti : onSetStatusNoti
+		, onGetStatusMarketingNoti : onGetStatusMarketingNoti
+		, onSetStatusMarketingNoti : onSetStatusMarketingNoti
+		, onGetLocationAgreement : onGetLocationAgreement
+		, onSetLocationAgreement : onSetLocationAgreement
+		, onGetStatusLogin : onGetStatusLogin
+		, onLogout : onLogout
+		, onConfirm : onConfirm
+		, onSaveCarNumber : onSaveCarNumber
+		, onDeleteCarNumber : onDeleteCarNumber
+		, onGetCarNumberList : onGetCarNumberList
+		, onTop : onTop*/
+	}
+
+})();

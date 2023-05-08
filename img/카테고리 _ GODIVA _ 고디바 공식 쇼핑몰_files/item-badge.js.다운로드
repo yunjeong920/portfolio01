@@ -1,0 +1,91 @@
+(function() {
+	
+	/**
+	 * 뱃지 처리
+	 */
+	var Badge = new function(){
+		this.setting = function(options) {
+			options = $.extend({
+				'item' : '',
+				'itemPrice' : '',
+				'target' : ''
+			}, options);
+			
+			if(!options.target || !options.item || !options.itemPrice){
+				console.log('뱃지 노출 에러 관리자에게 문의하세요.');
+				return;
+			}
+			
+			var result = false;
+			
+			// 기간한정여부 Y
+			if(options.item.perdLimYnView == 'Y'){
+				// 덤증정
+				if(options.item.saleBdgTpCd == 'item.saleBadge.type.plus'){
+					var map = {};
+					map.termYn = 'Y';
+					map.val = options.item.saleBdgVal;
+					map.term = rd.util.date.setDateFormat(options.item.perdLimEdDt, 'md') + ' 까지';
+					rd.HtmlTemplate.inject(map, '#item-badge-sale-tmpl', options.target);
+					result = true;
+				}
+				// 할인
+				else if(options.item.saleBdgTpCd == 'item.saleBadge.type.percent'){
+					var map = {};
+					map.termYn = 'Y';
+					
+					options.itemPrice.sellPrc += "", options.itemPrice.rgurPrc += "";
+					map.val = parseInt((1-(parseInt(options.itemPrice.sellPrc.replace(',', ''))/parseInt(options.itemPrice.rgurPrc.replace(',', ''))))*100) + '%';
+					map.term = rd.util.date.setDateFormat(options.item.perdLimEdDt, 'md', '.') + ' 까지';
+					rd.HtmlTemplate.inject(map, '#item-badge-sale-tmpl', options.target);
+					result = true;
+				}
+			}
+			
+			// 기간한정여부 N && 뱃지표시
+			if(!result){
+				if(options.item.perdLimYnView == 'N' && options.item.saleBdgTpCd){
+					// 덤증정
+					if(options.item.saleBdgTpCd == 'item.saleBadge.type.plus'){
+						var map = {};
+						map.termYn = 'N';
+						map.val = options.item.saleBdgVal;
+						rd.HtmlTemplate.inject(map, '#item-badge-sale-tmpl', options.target);
+						result = true;
+					}
+					// 할인
+					else if(options.item.saleBdgTpCd == 'item.saleBadge.type.percent'){
+						var map = {};
+						map.termYn = 'N';
+						
+						options.itemPrice.sellPrc += "", options.itemPrice.rgurPrc += "";
+						map.val = parseInt((1-(parseInt(options.itemPrice.sellPrc.replace(',', ''))/parseInt(options.itemPrice.rgurPrc.replace(',', ''))))*100) + '%';
+						if(map.val != '0%'){
+							rd.HtmlTemplate.inject(map, '#item-badge-sale-tmpl', options.target);
+							result = true;
+						}
+					}
+				}
+			}
+			// 할인
+			if(!result){
+				if(options.itemPrice.rgurItemYn != 'Y'){
+					rd.HtmlTemplate.inject(null, '#item-badge-hot-tmpl', options.target);
+				}
+				// 베스트
+				if(parseInt(options.item.itemBdgCdBit & 2) == 2){
+					rd.HtmlTemplate.inject(null, '#item-badge-best-tmpl', options.target);
+				}
+				// 신규
+				else if(parseInt(options.item.itemBdgCdBit & 1) == 1){
+					rd.HtmlTemplate.inject(null, '#item-badge-new-tmpl', options.target);
+				}
+			}
+		}
+	};
+	
+	$(function() {
+		cl.Badge = Badge;
+	});
+
+})();

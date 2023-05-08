@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="UTF-8">
+  <title>TITLE</title>
+  <meta name="description" content="DESCRIPTION">
+  <link rel="stylesheet" href="PATH">
+  <link rel="stylesheet" href="./css/initial.css">
+  <link rel="stylesheet" href="./css/general_ui.css">
+  <link rel="stylesheet" href="./css/style2.css">
+  <script type="text/javascript" src="./js/prefix.js"></script>
+  <!--[if lt IE 9]>
+  <script src = "http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+  </head>
+  <body>
+    <div id="wrap">
+      <header id="header">
+        <div id="logo">
+          <h1>
+            <a href="index.html"><img src="./img/logo.png" alt="main-logo"></a>
+          </h1>
+        </div>
+        <div class="inner">
+          <ul id="gnb">
+            <li><a href="#first">GODIVA MENU</a></li>
+            <li><a href="#second">ONLINE EXCULUSIVE</a></li>
+            <li><a href="#third">NEWS&EVENT</a></li>
+            <li><a href="#fourth">ABOUT GODIVA</a></li>
+          </ul>
+          <ul id="login_menu">
+            <li><a href="#">로그인</a></li>
+            <li><a href="page01.html">회원가입</a></li>
+            <li><a href="#" class="cart">장바구니<span class="count">0</span></a></li>
+          </ul>
+        </div>
+      </header>
+      <div id=acount>
+      <div class="title">
+        <h1>회원가입</h1>
+        <p class="prec"><em>*</em>표시는 필수 입력사항입니다.</p>
+      </div>
+      <form>
+        <table class="table_a">
+          <tr>
+            <td>
+              <em>*</em>사용자 아이디
+            </td>
+            <td>
+              <input type="text" class="middle" placeholder="8~12자까지" name="" value="">
+              <button class="gbtn transparent">중복확인</button>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <em>*</em>비밀번호
+            </td>
+            <td>
+              <input type="text" class="middle" placeholder="10~14자 / 문자+숫자+특수문자 조합">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <em>*</em>한글성명
+            </td>
+            <td>
+              <input type="text" class="middle">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <em>*</em>영문성명
+            </td>
+            <td>
+              <input type="text" class="middle">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <em>*</em>주소
+            </td>
+            <td>
+              <input type="text" class="big">
+              <button class="gbtn transparent">검색</button>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              상세주소
+            </td>
+            <td>
+              <input type="text" class="big" placeholder="예)1동 1002호(00동,00아파트)*단독주택의 경우 건물번호 입력">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <em>*</em>이메일
+            </td>
+            <td>
+              <input type="text"><i>@</i><input type="text">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <em>*</em>전화번호
+            </td>
+            <td>
+              <input type="text" class="tiny"><i>-</i><input type="text" class="tiny"><i>-</i><input type="text" class="tiny">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <em>*</em>휴대폰 번호
+            </td>
+            <td>
+              <input type="text" class="tiny"><i>-</i><input type="text" class="tiny"><i>-</i><input type="text" class="tiny">
+              <button class="gbtn transparent">본인확인</button>
+              <input type="checkbox" id="ck" name="ck"/>
+              <label for="ck"></label>
+              <div class="txt">확인 완료 여부</div>
+            </td>
+          </tr>
+        </table>
+        <div class="button_group">
+          <button class="gbtn normal gray">취소</button>
+          <button class="gbtn normal">회원가입</button>
+        </div>
+      </form>
+    </div>
+    <footer id="footer">
+      <div class="inner">
+        <div class="f_box logo">
+          <a href="#"><img src="./img/flogo.png" alt='하단로고'></a>
+        </div>
+        <div id="f_wrap">
+        <div class="sitemap">
+          <ul>
+            <li><a href="#">SITEMAP</a></li>
+            <li><a href="#">사이트맵</a></li>
+            <li><a href="#">개인정보 취급방침</a></li>
+            <li><a href="#">약관 개정 안내</a></li>
+            <li><a href="#">사업자 정보</a></li>
+            <li><a href="#">마케팅 제휴/매장 오픈</a></li>
+            <li><a href="#">채용정보</a></li>
+          </ul>
+        </div>
+        <div class="survice">
+          <ul>
+            <li><a href="#">CUSTOMER SERVICE</a></li>
+            <li><a href="#">고객센터</a></li>
+            <li><a href="#">FAQ</a></li>
+            <li><a href="#">1:1 문의</a></li>
+            <li><a href="#">주문/배송/대량구매</a></li>
+        </div>
+        <div class="time">
+          <ul>
+            <li><a href="#">OPENING TIME</a></li>
+            <li><a href="#">TEL. 080-759-7700</a></li>
+            <li><a href="#">평일 AM 10:00 - PM 5:00</a></li>
+            <li><a href="#">점심시간 PM 12:00 - 2:00</a></li>
+            <li><a href="#">토, 일, 공휴일 휴무</a></li>
+        </div>
+      </div>
+        <select id="familysite">
+          <option value="0" disabled selected hidden>Family Site</option>
+          <option value="1">Naver.com</option>
+          <option value="2">Daum.net</option>
+          <option value="3">instagram.com</option>
+        </select>
+      </div>
+    </footer>
+    </div>
+  </body>
+</html>

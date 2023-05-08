@@ -1,0 +1,786 @@
+(function() {
+	
+	var Http = new function() {
+        var init = false;
+        var httpPorts = {};
+        var httpsPorts = {};
+
+		this.getHttpHost = function() {
+            this.initServerPorts();
+
+			var hostname = 'http://' + location.hostname;
+			if (location.port != '') {
+				hostname += ':' + httpPorts[location.port];
+			}
+			
+			return hostname;
+		};
+		
+		this.getHttpsHost = function() {
+            this.initServerPorts();
+
+            var hostname = 'https://' + location.hostname;
+            if (location.port != '') {
+                hostname += ':' + httpsPorts[location.port];
+            }
+
+            return hostname;
+        };
+
+        this.initServerPorts = function() {
+            if (init)
+                return ;
+
+            var _httpPorts = c.httpPorts.split(',');
+            var _httpsPorts = c.httpsPorts.split(',');
+
+            for(var idx = 0, httpPort, httpsPort; httpPort = _httpPorts[idx], httpsPort = _httpsPorts[idx]; idx++) {
+                // HTTP
+                httpPorts[httpPort] = httpPort;
+                httpPorts[httpsPort] = httpPort;
+                // HTTPS
+                httpsPorts[httpPort] = httpsPort;
+                httpsPorts[httpsPort] = httpsPort;
+            }
+
+            init = true;
+        };
+	};
+	
+    /**
+     * $.ajax 를 Wrapping 한 모듈
+     * Ajax 통신시에 공통적으로 적용되어야 할 부분들을 처리하며
+     * 모든 Ajax 통신은 본 모듈을 사용하여 처리되어야 함
+     */
+    var Ajax = new function() {
+        var self = this;
+        
+        this.defaultSuccessCallback = function(d) {
+            
+        };
+        
+        this.defaultErrorCallback = function(jqxhr, textStatus, errorThrown) {
+
+            /**
+             * data 변수에 json 를 담음
+             */
+            jqxhr.data = jqxhr.responseJSON;
+            
+            /**
+             * 에러메세지를 alert 으로 출력
+             */
+            jqxhr.alertError = function() {
+                if(textStatus == 'abort') {
+                    return;
+                }
+                
+                if(jqxhr.status === 0) {
+                	return;
+                }
+            	
+                if($.isEmptyObject(jqxhr.data)) {
+                    alert('통신 중 문제가 발생하였습니다');
+                    return;
+                }
+
+                // 401: login error
+                if(jqxhr.status == 401) {
+                	if(jqxhr.data.loginFormUrl) {
+                		alert(jqxhr.data.message);
+                		location.href = jqxhr.data.loginFormUrl;
+                	}
+                	
+                    return;
+                }
+
+                // 400: Bad Request, Validation Failed
+                if(jqxhr.status == 400) {
+                	if(jqxhr.data.field) {
+                		$('[name="' + jqxhr.data.field + '"]').focus();
+                	}
+                	
+                    alert(jqxhr.data.message);
+                }
+                
+                // 403: Forbidden
+                if(jqxhr.status == 403) {
+                	alert(jqxhr.data.message);
+                }
+
+                // 500: internal server error
+                if(jqxhr.status == 500) {
+                    if (jqxhr.data.message) {
+                        alert(jqxhr.data.message);
+                    } else {
+                        alert('에러가 발생하였습니다. 관리자에게 문의해 주세요.');
+                    }
+                    return;
+                }
+            };
+        };
+        
+        /**
+         * Ajax 통신 (GET)
+         * @param options $.ajax 옵션
+         */
+        this.get = function(options) {
+            options = $.extend(true, {
+            	'dataType': 'json',
+            	'type': 'GET',
+            	'data': {
+            		'_format': 'json'
+            	},
+                'success': self.defaultSuccessCallback,
+                'error': self.defaultErrorCallback
+            }, options);
+            return $.ajax(options);
+        };
+        
+        /**
+         * Ajax 통신 (DELETE)
+         * @param options $.ajax 옵션
+         */
+        this.del = function(options) {
+        	return this.get($.extend(true, {
+        		'type': 'DELETE'
+        	}, options));
+        };
+        
+        /**
+         * Ajax 통신 (POST)
+         * @param options $.ajax 옵션
+         */
+        this.post = function(form, options) {       	
+        	options = $.extend(true, {
+        		'dataType': 'json',
+        		'type': 'POST',
+            	'data': {
+            		'_format': 'json'
+            	},        		
+                'success': self.defaultSuccessCallback,
+                'error': self.defaultErrorCallback
+        	}, options);
+        	
+        	if(form) {
+        		return $(form).ajaxSubmit(options).data('jqxhr');
+        	} else {
+        		return $.ajax(options);
+        	}
+        };
+        
+        /**
+         * Ajax 통신 (PUT)
+         * @param options $.ajax 옵션
+         */
+        this.put = function(form, options) {
+        	return this.post(form, $.extend(true, {
+        		'type': 'PUT'
+        	}, options));
+        };
+    };
+    
+    /**
+     * 유효성 검사
+     */
+    var Valid = function() {
+        var _elements = [];
+        var _defaultCallback;
+        
+        var self = this;
+        
+        this.ValidateException = function() {
+            this.target;
+            this.rule;
+            this.ruleValue;
+            this.message;
+            this.callback;
+            
+            this.focusing = function() {
+                if(typeof this.target.focus !== 'undefined') {
+                    this.target.focus();
+                }
+            };
+        };
+
+        var rules = {
+            'required': function(ruleValue, inputValue) {
+                if(!inputValue) {
+                    return true;
+                }
+            },
+            
+            'min-length': function(ruleValue, inputValue) {
+                if(inputValue.length < ruleValue) {
+                    return true;
+                }
+            },
+            
+            'max-length': function(ruleValue, inputValue) {
+                if(inputValue.length > ruleValue) {
+                    return true;
+                }
+            },
+            
+            'min-byte': function(ruleValue, inputValue) {
+                var inputValueByte = rd.util.string.getByteLength(inputValue, 3);
+                
+                if(inputValueByte < ruleValue) {
+                    return true;
+                }
+            },
+            
+            'max-byte': function(ruleValue, inputValue) {
+                var inputValueByte = rd.util.string.getByteLength(inputValue, 3);
+                
+                if(inputValueByte > ruleValue) {
+                    return true;
+                }           
+            },
+            
+            'email': function(ruleValue, inputValue) {
+                var r = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+                
+                return !r.test(inputValue);
+            },
+            
+            'regexp': function(ruleValue, inputValue) {
+                var r = ruleValue;
+                
+                return !r.test(inputValue);
+            },
+            
+            'allow-char': function(ruleValueArray, inputValue) {
+                // alphabet, alphabet-upper, alphabet-lower, hangul, numeric
+                // (any special characters)
+                
+                if(typeof ruleValueArray === 'string') {
+                    ruleValueArray = ruleValueArray.split(',');
+                }
+                
+                var rStr = '';
+                
+                $.each(ruleValueArray, function(i, v) {
+                    v = $.trim(v);
+                    
+                    if(v == 'alphabet') {
+                        rStr += 'a-zA-Z';
+                    } else if(v == 'alphabet-upper') {
+                        rStr += 'A-Z';
+                    } else if(v == 'alphabet-lower') {
+                        rStr += 'a-z';
+                    } else if(v == 'hangul') {
+                        rStr += '가-힣';
+                    } else if(v == 'numeric') {
+                        rStr += '0-9';
+                    } else {
+                        rStr += v;
+                    }
+                });
+                
+                var r = new RegExp('^[' + rStr + ']+$');
+                
+                return !r.test(inputValue);
+            }
+        };
+        
+        var _check = function(target, rule, ruleValue, message, callback) {
+            var value = '';
+            
+            if(typeof target === 'string') {
+                value = target;
+            } else if(target instanceof jQuery) {
+                value = target.val();
+            } else if(typeof target.value !== 'undefined') {
+                value = target.value;
+            }
+            
+            value = $.trim(value);
+
+            var result = rules[rule].apply(this, [ruleValue, value]);
+            
+            if(result) {
+                var e = new self.ValidateException();
+                e.target = target;
+                e.rule = rule;
+                e.ruleValue = ruleValue;
+                e.message = message;
+                e.callback = callback;
+                
+                throw e;
+            }
+        };
+        
+        this.setDefaultCallback = function(callback) {
+            _defaultCallback = callback;
+        };
+        
+        this.add = function(target, rule, ruleValue, message, callback) {
+            _elements.push({
+                'target': target,
+                'rule': rule,
+                'ruleValue': ruleValue,
+                'message': message,
+                'callback': callback
+            })
+        };
+        
+        this.validate = function() {
+            var result = true;
+            
+            $.each(_elements, function(i, v) {
+                try {
+                    _check(v.target, v.rule, v.ruleValue, v.message, v.callback);
+                } 
+                
+                catch(e) {
+                    if(e instanceof self.ValidateException) {
+                        if(e.callback && typeof e.callback === 'function') {
+                            e.callback.apply(self, [e]);
+                        } else if(_defaultCallback && typeof _defaultCallback === 'function') {
+                            _defaultCallback.apply(self, [e]);
+                        }
+                        
+                        return result = false;     
+                    } else {
+                        console.error(e);
+                    }
+                }
+            });
+            
+            return result;
+        };        
+    };
+    
+    /**
+     * Html Template (jsrender)
+     */
+    var HtmlTemplate = new function() {
+        var self = this;
+        
+        var _init = function() {
+            $.views.helpers({rd: rd});
+            
+            $.views.helpers({
+				format: function (val, format) {
+					
+					var date = new Date(val);
+					switch (format) {
+					case 'yyyymmdd':
+						return date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate();
+					}
+					
+				},
+				price: function(val) {
+					return rd.util.numberFormat.formatPrice(val);
+				}
+			});
+            
+            $.views.tags({
+            	range: {
+            	    boundProps: ["start", "end"],
+
+            	    // Inherit from {{for}} tag
+            	    baseTag: "for",
+
+            	    // Override the render method of {{for}}
+            	    render: function(val) {
+            	      var array = val,
+            	        tagCtx = this.tagCtx,
+            	        start = tagCtx.props.start || 0,
+            	        end = tagCtx.props.end,
+            	        props = tagCtx.params.props;
+
+            	      if (start || end) {
+            	        if (!tagCtx.args.length) { // No array argument passed from tag, so create
+            	                                   // a computed array of integers from start to end
+
+            	          array = [];
+            	          end = end || 0;
+            	          for (var i = start; i <= end; i++) {
+            	            array.push(i);
+            	          }
+            	        } else if ($.isArray(array)) { // There is an array argument and start and end
+            	                 // properties,so render using the array truncated to the chosen range
+            	          array = array.slice(start, end);
+            	        }
+            	      }
+
+            	      // Call the {{for}} baseTag render method
+            	      return arguments.length || props && (props.start || props.end)
+            	        ? this.base(array)
+            	        : this.base(); // Final {{else}} tag, so call base() without arguments, for
+            	                       // final {{else}} of base {{for}} tag
+            	    },
+
+            	    // override onArrayChange of the {{for}} tag implementation
+            	    onArrayChange: function(ev, eventArgs) {
+            	      this.refresh();
+            	    }
+            	}
+        	});
+        };
+
+        /**
+         * jsrender.templates 확장
+         * 화면에 jsRender 템플릿을 넣는다.
+         * @param data {Object}
+         * @param template {String}
+         * @param injectTo {String}
+         * @param options.before {Boolean} 
+         * @param options.after {Boolean} 
+         * @param options.prepend {Boolean} 
+         * @author 윤찬
+         */
+        this.inject = function(data, template, injectTo, options) {
+        	
+        	options = $.extend({
+        	    before: false,
+        		after: false,
+        		prepend: false,
+        		append: true
+        	}, options);
+
+            var temp = $.templates(template);
+            var html = $(temp.render(data));
+                 
+            if(options.before) {
+                $(injectTo).before(html);
+            } else if(options.after) {
+        		$(injectTo).after(html);            	
+        	} else if(options.prepend) {
+        	    $(injectTo).prepend(html);
+        	} else if(options.append) {
+        		$(injectTo).append(html);
+        	}
+
+            return html;
+
+        };
+            
+        _init();
+    };
+    
+    /**
+     * 팝업
+     */
+    var Popup = new function() {
+        
+        /**
+         * 팝업 윈도우에서 opener 객체를 통해 작업을 진행할 경우
+         * 본 callback 함수에 접근할 변수나 함수들을 담아 접근 할 수 있게 함
+         */
+        this.callback = {};
+        
+        /**
+         * 팝업윈도우를 센터 포지션으로 위치시키기 위해 계산
+         */
+        var _calculateCenterPosition = function(w, h) {
+            // ref. http://stackoverflow.com/questions/4068373/center-a-popup-window-on-screen
+            // Fixes dual-screen position                         Most browsers      Firefox
+            var dualScreenLeft = window.screenLeft != undefined ? window.screenLeft : screen.left;
+            var dualScreenTop = window.screenTop != undefined ? window.screenTop : screen.top;
+
+            var width = window.innerWidth ? window.innerWidth : document.documentElement.clientWidth ? document.documentElement.clientWidth : screen.width;
+            var height = window.innerHeight ? window.innerHeight : document.documentElement.clientHeight ? document.documentElement.clientHeight : screen.height;
+
+            return {
+                left: ((width / 2) - (w / 2)) + dualScreenLeft,
+                top: ((height / 2) - (h / 2)) + dualScreenTop
+            };
+        };
+        
+        /**
+         * 팝업 옵션들을 key=value, 형태로 변환
+         */
+        var _makeOptionString = function(options, fieldNames) {
+            var arr = [];
+            
+            $.each(fieldNames, function(i, v) {
+                var optionValue = options[v];
+                
+                if(typeof optionValue === 'boolean') {
+                    optionValue = optionValue ? 'yes' : 'no';
+                }
+                
+                arr.push(v + '=' + optionValue);
+            });
+            
+            return arr.join(',');
+        };
+        
+        /**
+         * 팝업 열기
+         */
+        this.open = function(popupOptions) {
+            popupOptions = popupOptions || {};
+            
+            var options = $.extend({
+                url: '',
+                name: '',
+                top: '0',
+                left: '0',
+                width: '200',
+                height: '200',
+                params: {},             // URL 파라메터 부분 (querystring)
+                resizable: false,       // (IE only) Window is resizable.
+                status: false,          // Add a status bar (bottom)
+                scrollbars: true,       // Display scroll bars.
+                location: false,        // (Opera only) Display the address field.
+                menubar: false,         // Display menu bar. (Contains File, Edit, etc)
+                toolbar: false,         // (IE, FF only) Display the browser toolbar.
+                titlebar: false,        // Display the browser title bar.
+                copyhistory: false,     // Copy the old browser window's history list to the new window.
+
+                fullscreen: false,      // (IE only) Display the browser in full-screen mode. Default is no. 
+                                        // A window in full-screen mode must also be in theater mode.
+                channelmode: false,     // Display the window in theater mode. Default is no. IE only
+                directories: false,     // Obsolete. Add directory buttons. Default is yes. IE only
+                
+                focus: true             // Enable window.focus().
+            }, popupOptions);
+            
+            // calcaulte top, left position (default)
+            options = $.extend(options, _calculateCenterPosition(options.width, options.height), {
+                top: popupOptions.top,
+                left: popupOptions.left
+            });
+            
+            var popupOptionString = _makeOptionString(options, [
+                                        'width', 'height', 'top', 'left',
+                                        'fullscreen', 'location', 'menubar', 'resizable', 'scrollbars',
+                                        'status', 'toolbar', 'titlebar'
+                                    ]);
+            
+            var url = rd.util.url.addParamsToUrl(options.url, options.params);
+            
+            // open popup
+            var popup = window.open(url, options.name, popupOptionString);
+            
+            // focus popup window
+            if(options.focus && popup.focus) {
+                popup.focus();
+            }
+            
+            return popup;
+        };
+    };
+    
+    /**
+     * 우편번호 팝업 띄우기
+     * 미리 스크립트 파일이 로드되어 있어야함
+     * http://dmaps.daum.net/map_js_init/postcode.v2.js 
+     * @see http://postcode.map.daum.net/guide
+     */
+    var Zipcode = new function() {
+    	this.init = function(deviceEnv, callback, options, openOptions) {
+    		if(deviceEnv != 'device.env.pc')
+    			this.openMobile(callback, options, openOptions);
+    		else this.open(callback, options, openOptions);
+    	}
+    	
+    	this.open = function(callback, options, openOptions) {
+    		var defaultWidth = 400;
+    		var defaultHeight = 600;
+    		
+    		daum.postcode.load(function() {
+    			new daum.Postcode($.extend(true, {
+    				popupName: 'rdZipcode',
+    				width: defaultWidth,
+    				height: defaultHeight,
+    				oncomplete: callback
+    			}, options))
+	    			.open($.extend(true, {
+	    			    left: (window.screen.width / 2) - (defaultWidth / 2),
+	    			    top: (window.screen.height / 2) - (defaultHeight / 2)
+	    			}, openOptions));
+    		});
+    	};
+    	
+    	this.openMobile = function(callback, options, openOptions) {
+    	    var element_wrap = document.getElementById('address_wrap');
+    	    var defaultWidth = '100%';
+    		var defaultHeight = '100%';
+
+	        var currentScroll = Math.max(document.body.scrollTop, document.documentElement.scrollTop);
+	        new daum.Postcode({
+	            oncomplete: function(data) {
+	            	callback(data),
+	                element_wrap.style.display = 'none';
+	                document.body.scrollTop = currentScroll;
+	            },
+	            onresize : function(size) {
+	                element_wrap.style.height = size.height+'px';
+	            },
+	            width: defaultWidth,
+				height: defaultHeight,
+	        }).embed(element_wrap);
+
+	        element_wrap.style.display = 'block';
+	        this.foldDaumPostCode(element_wrap);
+    	};
+    	
+    	this.foldDaumPostCode = function(element_wrap) {
+    		$("#btnFoldWrap").on("click", function() {
+    			element_wrap.style.display = 'none';
+    		})
+	    }
+    };
+    
+	/**
+	 * 네이버 스마트 에디터
+	 */
+	var HtmlEditor = new function() {
+	    var self = this;
+
+	    self.oEditors = [];
+
+	    /**
+	     * 기본 옵션으로 스마트 에디터를 생성한다
+	     */
+	    this.create = function(id, options) {
+            self.oEditors = self.oEditors || [];
+	        
+	        options = $.extend(true, {
+	        	width: '100%',
+	        	windowAutoResize: true,
+	        	htParams: {fOnBeforeUnload : function(){}}
+	        }, options);
+	        
+	        var callback = options != null ? options.callback : options;
+	        var skinHtml = window.c.resRoot + '/plugins/smarteditor/SmartEditor2Skin.html';
+	        
+	        if(navigator.userAgent.search('iPhone|iPad|Android') > -1) {
+	            skinHtml = window.c.resRoot + '/plugins/smarteditor/SmartEditor2Skin-mobile.html';
+	        }
+	        
+	        // textarea 크기값을 100% 로 지정해야 상위 container 에 따라 올바르게 resize 가 됨
+	        $('#' + id).width(options.width);
+
+	        nhn.husky.EZCreator.createInIFrame($.extend({
+	            oAppRef: self.oEditors,
+	            elPlaceHolder: id,
+	            sSkinURI: skinHtml,
+	            fCreator: 'createSEditor2',
+	            bAutoResize: true,
+	            fOnAppLoad: function() {
+	            	if(callback){
+	            		callback(options.type);
+	            	}
+	            	
+	            	if(options.windowAutoResize)
+	            		$(window).trigger('resize');
+	            }
+	        }, options));
+	    };
+
+	    /**
+	     * 읽기전용 모드로 스마트 에디터를 생성한다
+	     */
+	    this.createReadonly = function(id, options) {
+	    	
+	    	var callback = options != null ? options.callback : options;
+	    	
+	        options = $.extend(true, {
+	            htParams: {
+	                bUseToolbar : false
+	            },
+
+	            fOnAppLoad: function() {
+                    self.oEditors.getById[id].exec('DISABLE_WYSIWYG');
+	                $(self.oEditors.getById[id].getWYSIWYGDocument())
+	                    .find('body').css('background-color', '#EEE');
+	                
+	                if(callback){
+	            		callback(options.type);
+	            	}
+	            }
+	        }, options);
+
+	        self.create(id, options);
+	    };
+
+	    /**
+	     * editor 안에 있는 데이터를
+	     * input hidden 태그의 value 에 업데이트한다
+	     */
+	    this.updateContents = function(id, extraData) {
+	    	if(self.oEditors != null){
+                self.oEditors.getById[id].exec('UPDATE_CONTENTS_FIELD', extraData || []);
+	    	}
+	    };
+	    
+	    /**
+	     * editor 안에 내용 초기화
+	     */
+	    this.removeContents = function(id) {
+            self.oEditors.getById[id].exec("SET_CONTENTS", [""]);
+	    	// editor 내용 삭제후 textarea value값 업데이트
+	    	this.updateContents(id);
+	    };
+	    
+	    /**
+	     * editor에 내용 set
+	     */
+	    this.setContentsData = function(id, text) {
+            self.oEditors.getById[id].exec("PASTE_HTML", [text]);
+	    };
+	};
+	
+	/**
+	 * Form 
+	 */
+	var Form = new function(){
+		
+		this.excludeArray = [];
+		
+		/**
+		 * queryString 가져오기
+		 * @param options 제외할 parameter array
+		 */
+	    this.getQueryString = function(form, options){
+	    	
+	    	options = $.extend({
+	    		exclude : this.excludeArray
+	    	}, options);
+
+	    	var exSelector = "";
+	    	if(options.exclude != null){
+	    		$.each(options.exclude, function(key, val){
+	    			if(exSelector == ""){
+	    				exSelector += '[name=' + val + ']';
+	    			}else{
+	    				exSelector += ',[name=' + val + ']';
+	    			}
+	    		});
+	    	}
+	    	return $(form).find('input,select').not(exSelector).serialize();
+	    };
+	    
+	    this.submitting = function(form, isInProgress) {
+	    	if(typeof isInProgress === 'undefined') {
+	    		return $(form).data('form-submitting') || false;
+	    	}
+	    	
+	    	if(isInProgress == true) {
+	    		$(form).data('form-submitting', true);
+	    		return true;
+	    	} else if(isInProgress == false) {
+	    		$(form).data('form-submitting', false);
+	    		return false;
+	    	}
+	    };
+	};
+	
+    (function() {
+    	rd.Http = Http;
+    	rd.Ajax = Ajax;
+    	rd.Valid = Valid;
+    	rd.Popup = Popup;
+    	rd.HtmlTemplate = HtmlTemplate;
+    	rd.Zipcode = Zipcode;
+    	rd.HtmlEditor = HtmlEditor;
+    	rd.Form = Form;
+    })();
+    
+    return rd;
+})();
